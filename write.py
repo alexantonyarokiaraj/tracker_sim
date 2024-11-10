@@ -1,0 +1,261 @@
+import ROOT
+from collections import namedtuple
+
+
+# Function to create the ROOT file, tree, and branches
+def create_tree_and_branches(tree_name):
+    # Create a TTree named "events"
+    tree = ROOT.TTree(tree_name, "Event Data Tree")
+
+    # Declare variables
+    eventid = ROOT.std.vector("int")()
+    verX = ROOT.std.vector("float")()
+    verY = ROOT.std.vector("float")()
+    verZ = ROOT.std.vector("float")()
+    dirX = ROOT.std.vector("float")()
+    dirY = ROOT.std.vector("float")()
+    dirZ = ROOT.std.vector("float")()
+    Eenergy = ROOT.std.vector("float")()
+    Elab = ROOT.std.vector("float")()
+    ransac_comp = ROOT.std.vector("int")()
+    ransac_beam_comp = ROOT.std.vector("int")()
+    ransac_track_comp = ROOT.std.vector("int")()
+    ransac_ari = ROOT.std.vector("float")()
+    ransac_angles = ROOT.std.vector("float")()
+    gmm_comp = ROOT.std.vector("int")()
+    gmm_beam_comp = ROOT.std.vector("int")()
+    gmm_track_comp = ROOT.std.vector("int")()
+    gmm_ari = ROOT.std.vector("float")()
+    gmm_angles = ROOT.std.vector("float")()
+    gmm_bb_metric = ROOT.std.vector("float")()
+    gmm_bt_metric = ROOT.std.vector("float")()
+    gmm_tt_metric = ROOT.std.vector("float")()
+
+    # Create branches for each variable
+    tree.Branch("eventid", eventid)
+    tree.Branch("verX", verX)
+    tree.Branch("verY", verY)
+    tree.Branch("verZ", verZ)
+    tree.Branch("dirX", dirX)
+    tree.Branch("dirY", dirY)
+    tree.Branch("dirZ", dirZ)
+    tree.Branch("Eenergy", Eenergy)
+    tree.Branch("Elab", Elab)
+    tree.Branch("ransac_comp", ransac_comp)
+    tree.Branch("ransac_beam_comp", ransac_beam_comp)
+    tree.Branch("ransac_track_comp", ransac_track_comp)
+    tree.Branch("ransac_ari", ransac_ari)
+    tree.Branch("ransac_angles", ransac_angles)
+    tree.Branch("gmm_comp", gmm_comp)
+    tree.Branch("gmm_beam_comp", gmm_beam_comp)
+    tree.Branch("gmm_track_comp", gmm_track_comp)
+    tree.Branch("gmm_ari", gmm_ari)
+    tree.Branch("gmm_angles", gmm_angles)
+    tree.Branch("gmm_bb_metric", gmm_bb_metric)
+    tree.Branch("gmm_bt_metric", gmm_bt_metric)
+    tree.Branch("gmm_tt_metric", gmm_tt_metric)
+
+    return {
+        "tree": tree,
+        "eventid": eventid,
+        "verX": verX,
+        "verY": verY,
+        "verZ": verZ,
+        "dirX": dirX,
+        "dirY": dirY,
+        "dirZ": dirZ,
+        "Eenergy": Eenergy,
+        "Elab": Elab,
+        "ransac_comp": ransac_comp,
+        "ransac_beam_comp": ransac_beam_comp,
+        "ransac_track_comp": ransac_track_comp,
+        "ransac_ari": ransac_ari,
+        "ransac_angles": ransac_angles,
+        "gmm_comp": gmm_comp,
+        "gmm_beam_comp": gmm_beam_comp,
+        "gmm_track_comp": gmm_track_comp,
+        "gmm_ari": gmm_ari,
+        "gmm_angles": gmm_angles,
+        "gmm_bb_metric": gmm_bb_metric,
+        "gmm_tt_metric": gmm_tt_metric,
+        "gmm_bt_metric": gmm_bt_metric
+    }
+
+# Function to fill event data into the tree
+def fill_event_data_to_tree(result, event_data):
+
+    # Clear the vectors before filling new data
+    eventid = result["eventid"]
+    verX = result["verX"]
+    verY = result["verY"]
+    verZ = result["verZ"]
+    dirX = result["dirX"]
+    dirY = result["dirY"]
+    dirZ = result["dirZ"]
+    Eenergy = result["Eenergy"]
+    Elab = result["Elab"]
+    ransac_comp = result["ransac_comp"]
+    ransac_beam_comp = result["ransac_beam_comp"]
+    ransac_track_comp = result["ransac_track_comp"]
+    ransac_ari = result["ransac_ari"]
+    ransac_angles = result["ransac_angles"]
+    gmm_comp = result["gmm_comp"]
+    gmm_beam_comp = result["gmm_beam_comp"]
+    gmm_track_comp = result["gmm_track_comp"]
+    gmm_ari = result["gmm_ari"]
+    gmm_angles = result["gmm_angles"]
+    gmm_bb_metric = result["gmm_bb_metric"]
+    gmm_bt_metric = result["gmm_bt_metric"]
+    gmm_tt_metric = result["gmm_tt_metric"]
+
+
+    eventid.clear()
+    verX.clear()
+    verY.clear()
+    verZ.clear()
+    dirX.clear()
+    dirY.clear()
+    dirZ.clear()
+    Eenergy.clear()
+    Elab.clear()
+    ransac_comp.clear()
+    ransac_beam_comp.clear()
+    ransac_track_comp.clear()
+    ransac_ari.clear()
+    ransac_angles.clear()
+    gmm_comp.clear()
+    gmm_beam_comp.clear()
+    gmm_track_comp.clear()
+    gmm_ari.clear()
+    gmm_angles.clear()
+    gmm_bb_metric.clear()
+    gmm_bt_metric.clear()
+    gmm_tt_metric.clear()
+
+    tree = result["tree"]
+
+    # Fill vectors with the event data
+    eventid.push_back(event_data.event_id)
+    verX.push_back(event_data.verX)
+    verY.push_back(event_data.verY)
+    verZ.push_back(event_data.verZ)
+    dirX.push_back(event_data.dirX)
+    dirY.push_back(event_data.dirY)
+    dirZ.push_back(event_data.dirZ)
+    Eenergy.push_back(event_data.Eenergy)
+    Elab.push_back(event_data.Elab)
+    ransac_comp.push_back(event_data.ransac["components"])
+    ransac_beam_comp.push_back(event_data.ransac["beam_components"])
+    ransac_track_comp.push_back(event_data.ransac["track_components"])
+    ransac_ari.push_back(event_data.ransac["ari"])
+    gmm_comp.push_back(event_data.gmm["components"])
+    gmm_beam_comp.push_back(event_data.gmm["beam_components"])
+    gmm_track_comp.push_back(event_data.gmm["track_components"])
+    gmm_ari.push_back(event_data.gmm["ari"])
+
+
+    # Iterate and Fill
+    for angle in event_data.ransac["angles"].values():
+        ransac_angles.push_back(angle)
+
+    for angle in event_data.gmm["angles"].values():
+        gmm_angles.push_back(angle)
+
+    for metric in event_data.gmm["beam_beam_metric"].values():
+        gmm_bb_metric.push_back(metric)
+
+    for metric in event_data.gmm["track_track_metric"].values():
+        gmm_tt_metric.push_back(metric)
+
+    for metric in event_data.gmm["beam_track_metric"].values():
+        gmm_bt_metric.push_back(metric)
+
+    # Fill the tree with the data
+    tree.Fill()
+
+def main():
+
+    # Create the tree and branches, and get the vectors for eventid, verX, angles
+    # Call the function once and store the result
+    result = create_tree_and_branches("events")
+
+    EventInfo = namedtuple('Events', ['event_id', 'verX', 'verY', 'verZ', 'dirX', 'dirY', 'dirZ', 'Eenergy', 'Elab', 'ransac', 'gmm'])
+
+    single_event = EventInfo(
+    event_id=1,
+    verX=1.23,
+    verY=4.56,
+    verZ=7.89,
+    dirX=0.12,
+    dirY=0.34,
+    dirZ=0.56,
+    Eenergy=100.0,
+    Elab=50.0,
+    ransac={
+        "components": 3,
+        "ari": 0.92,
+        "beam_components": 2,
+        "track_components": 4,
+        "angles": {101: 23.5, 102: 45.0, 103: 67.1}
+    },
+    gmm={
+        "components": 4,
+        "ari": 0.85,
+        "beam_components": 3,
+        "track_components": 5,
+        "angles": {201: 12.5, 202: 54.0, 203: 89.6},
+        "beam_beam_metric": {(1, 2): 0.15, (2, 3): 0.18},
+        "track_track_metric": {(4, 5): 0.15, (6, 7): 0.10},
+        "beam_track_metric": {(2, 4): 0.18, (3, 6): 0.22}
+    }
+    )
+
+    # Fill event data into the tree
+    fill_event_data_to_tree(result, single_event)
+
+    single_event = EventInfo(
+    event_id=2,
+    verX=10.23,
+    verY=40.56,
+    verZ=70.89,
+    dirX=0.012,
+    dirY=0.304,
+    dirZ=0.506,
+    Eenergy=200.0,
+    Elab=500.0,
+    ransac={
+        "components": 1,
+        "ari": 0.52,
+        "beam_components": 3,
+        "track_components": 5,
+        "angles": {11: 3.5, 12: 5.0, 13: 7.1}
+    },
+    gmm={
+        "components": 3,
+        "ari": 0.5,
+        "beam_components": 2,
+        "track_components": 4,
+        "angles": {21: 2.5, 20: 4.0, 23: 9.6},
+        "beam_beam_metric": {(1, 2): 0.145, (2, 3): 0.218},
+        "track_track_metric": {(4, 5): 0.215, (6, 7): 0.210},
+        "beam_track_metric": {(2, 4): 0.218, (3, 6): 0.322}
+    }
+    )
+
+     # Fill event data into the tree
+    fill_event_data_to_tree(result, single_event)
+
+    # Open the ROOT file in 'UPDATE' mode
+    root_file = ROOT.TFile("events.root", "UPDATE")
+
+    # Write the tree to the ROOT file
+    result["tree"].Write()
+
+    # Close the ROOT file
+    root_file.Close()
+
+    print("ROOT file with event data created successfully!")
+
+if __name__ == "__main__":
+    main()
+

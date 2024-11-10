@@ -28,6 +28,7 @@ from merger import calculate_cluster_metrics
 import json
 import os
 from sklearn.metrics import adjusted_rand_score
+from write import create_tree_and_branches, fill_event_data_to_tree
 
 np.random.seed(42)
 
@@ -47,11 +48,12 @@ plots = False
 sim = True
 debug=False
 final_plots_flag = False
-event_start = 2
-event_end = 2
+event_start = 1
+event_end = 3
 save_final_data=False
 with_missing_pads = True
-batch_mode = False
+batch_mode = True
+save_to_root = True
 
 np.set_printoptions(threshold=np.inf)
 
@@ -771,14 +773,23 @@ def beam_track_data(data_array):
 
 for energy in excitation_energies:
     for angle in cm_angles:
+
         filename = path+"sim_5000_"+str(energy)+"mev_"+str(angle)+"cm.root"
         f = TFile(filename)
         myTree = f.Get("SimulatedTree")
         entry = myTree.GetEntries()
         print('Reading', entry ,'entries from file', filename)
+
+        if save_to_root:
+            root_file = root.TFile("recon_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm.root", "UPDATE")
+            result = create_tree_and_branches("events")
+
         EventInfo = namedtuple('Events', ['event_id', 'verX', 'verY', 'verZ', 'dirX', 'dirY', 'dirZ', 'Eenergy', 'Elab', 'ransac', 'gmm'])
         EventInfoList = []
         exception_events = []
+
+
+
         for entries in myTree:
             try:
                 if entries.data.event >= event_start and entries.data.event <= event_end:
@@ -889,8 +900,12 @@ for energy in excitation_energies:
                     event_info = event_info._replace(ransac=ransac)
                     event_info = event_info._replace(gmm=gmm)
 
-                    if low_energy_track_count_ransac >= 0 or low_energy_track_count_gmm >=0:
-                        EventInfoList.append(event_info)
+
+                    EventInfoList.append(event_info)
+
+                    if save_to_root:
+                        print(event_info)
+                        fill_event_data_to_tree(result, event_info)
 
                     #Final Visualization Closures
                     if plots:
@@ -913,7 +928,11 @@ for energy in excitation_energies:
                 print("Exception Encountered")
                 exception_events.append(entries.data.event)
                 continue
-        print('Exited the file')
+        print('Exited the file', exception_events)
+        if save_to_root:
+            print('Saving to ROOT File')
+            result["tree"].Write()
+            root_file.Close()
         # Define histogram parameters
         if plots:
             # print('Close Figure')
@@ -982,3 +1001,4 @@ for energy in excitation_energies:
             save_list(energy, angle, all_ari_gmm, tag+"_all_ari_gmm")
             save_list(energy, angle, exception_events, tag+"_exception_events")
             sys.exit(0)
+        f.Close()
