@@ -49,8 +49,8 @@ plots = True
 sim = True
 debug=False
 final_plots_flag = False
-event_start =3251
-event_end = 3253
+event_start =320
+event_end = 323
 save_final_data=False
 with_missing_pads = True
 batch_mode = False
@@ -675,9 +675,12 @@ def kinematics_gmm(data):
             # Calculate the angle between the cluster direction vector and the beamline
             angle = angle_between(track_vector, beam_vector)
 
-            # Store results
+            # Calculate the intersections
+            intersection_point = closest_point_on_line1(start_point, track_vector, np.array([0,128,128]), beam_vector)
 
+            # Store results
             angles[label] = round(angle, 2)
+            intersections[label] = intersection_point
 
             # print(f"Label: {label}, Angle with beam line: {angle:.2f} degrees")
 
@@ -688,8 +691,11 @@ def kinematics_gmm(data):
             line_end = track_mean + line_length * dirVecTrackNorm
             if plots:
                 ax11.plot([line_start[0], line_end[0]], [line_start[1], line_end[1]], label=f'Fitted Line {label}')
+                ax11.scatter(intersection_point[0], intersection_point[1], color='blue', marker='o', label='Intersection Point', s=100)
                 ax12.plot([line_start[1], line_end[1]], [line_start[2], line_end[2]], label=f'Fitted Line {label}')
+                ax12.scatter(intersection_point[1], intersection_point[2], color='blue', marker='o', label='Intersection Point', s=100)
                 ax13.plot([line_start[0], line_end[0]], [line_start[2], line_end[2]], label=f'Fitted Line {label}')
+                ax13.scatter(intersection_point[0], intersection_point[2], color='blue', marker='o', label='Intersection Point', s=100)
     return angles, low_energy_track_count
 
 # Function to do final plots
@@ -872,6 +878,42 @@ def get_directions(data, beam_start=np.array([0, 128, 128]), beam_end=np.array([
         ax13.set_ylim(start_point_z-10, end_point_z+10)
     return end_point, start_point, beam_vector, dirVecTrackNorm, track_mean
 
+# Function to get the intersection by using the closest distance between two lines.
+def closest_point_on_line1(p1, d1, q1, d2):
+    """
+    Finds the closest point on line1 to line2 in 3D space.
+
+    Parameters:
+    p1 (numpy array): A point on line 1.
+    d1 (numpy array): The direction vector of line 1.
+    q1 (numpy array): A point on line 2.
+    d2 (numpy array): The direction vector of line 2.
+
+    Returns:
+    numpy array: The closest point on line1 to line2.
+    """
+    # Convert inputs to numpy arrays for vector calculations
+    p1, d1, q1, d2 = map(np.array, (p1, d1, q1, d2))
+
+    # Compute the cross product of the direction vectors
+    d1_cross_d2 = np.cross(d1, d2)
+    d1_cross_d2_norm = np.linalg.norm(d1_cross_d2)  # Norm of the cross product
+
+    # Check if lines are parallel
+    if d1_cross_d2_norm == 0:
+        print("The lines are parallel, so there is no unique closest point.")
+        return np.array([-1,-1,-1])
+
+    # Calculate the vector between the points on each line
+    r = q1 - p1
+
+    # Calculate the closest approach parameters for each line
+    t = np.dot(np.cross(r, d2), d1_cross_d2) / d1_cross_d2_norm**2
+
+    # Compute the closest point on line 1 using parameter t
+    closest_point_line1 = p1 + t * d1
+
+    return closest_point_line1
 
 #######################################
 # Main Function
