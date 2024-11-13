@@ -29,6 +29,7 @@ import json
 import os
 from sklearn.metrics import adjusted_rand_score
 from write import create_tree_and_branches, fill_event_data_to_tree
+import pickle
 
 np.random.seed(42)
 
@@ -44,16 +45,17 @@ split_strings = input_string.split('@')
 excitation_energies=[split_strings[0]]
 cm_angles=[split_strings[1]]
 path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/DATA/SIMULATION/5000/"
-plots = False
+plots = True
 sim = True
 debug=False
 final_plots_flag = False
-event_start = 1
-event_end = 3
+event_start =3251
+event_end = 3253
 save_final_data=False
 with_missing_pads = True
-batch_mode = True
-save_to_root = True
+batch_mode = False
+save_to_root = False
+save_python_figures = False
 
 np.set_printoptions(threshold=np.inf)
 
@@ -230,8 +232,8 @@ button_next.on_clicked(next_button_callback)
 # Function to calculate the angle between two vectors
 def angle_between(v1, v2):
     # Ensure the direction of v1 aligns with v2 by flipping if necessary
-    if np.dot(v1, v2) < 0:
-        v1 = -v1  # Flip v1 to ensure it points in the same general direction as v2
+    # if np.dot(v1, v2) < 0:
+    #     v1 = -v1  # Flip v1 to ensure it points in the same general direction as v2
     cos_theta = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
     return np.degrees(np.arccos(np.clip(cos_theta, -1.0, 1.0)))
 
@@ -635,15 +637,13 @@ def plot_gmm(data_array, event_info):
     return [colorbar7, colorbar8, colorbar9]
 
 # Function to plot the kinematics of GMM Clusters
-def kinematics_gmm(data, beam_start=np.array([0, 128, 128]), beam_end=np.array([256, 128, 128])):
+def kinematics_gmm(data):
     """
     Analyze clusters based on GMM labels to find direction vectors, intersections with a beam line,
     and angles. Plot the clusters with their fitted line in XY projection.
 
     Parameters:
     - data (np.ndarray): Input data array with columns [x, y, z, true labels, ransac labels, gmm labels].
-    - beam_start (np.ndarray): Start point of the beam line.
-    - beam_end (np.ndarray): End point of the beam line.
 
     Returns:
     - intersections (dict): Dictionary of intersections for qualifying clusters.
@@ -651,8 +651,6 @@ def kinematics_gmm(data, beam_start=np.array([0, 128, 128]), beam_end=np.array([
     """
     intersections = {}
     angles = {}
-
-    beam_direction = (beam_end - beam_start) / np.linalg.norm(beam_end - beam_start)
 
     # Group by GMM labels
     gmm_labels = np.unique(data[:, 6])
@@ -668,23 +666,17 @@ def kinematics_gmm(data, beam_start=np.array([0, 128, 128]), beam_end=np.array([
         # Calculate the mean of Y coordinate
         mean_y = np.mean(cluster_data[:, 1])
         if (mean_y >= beam_zone_high or mean_y < beam_zone_low) and cluster_data.shape[0] >= 10:
-            # Perform PCA to find the primary direction vector of the cluster
-            pca = PCA(n_components=1)
-            pca.fit(cluster_data[:, :3])  # Only x, y, z coordinates
-            direction_vector = pca.components_[0]
 
-            low_energy_track_count += 1
 
-            # Find the intersection with the beamline
-            cluster_mean = np.mean(cluster_data[:, :3], axis=0)
-            t_intersection = np.dot((beam_start - cluster_mean), direction_vector) / np.dot(direction_vector, beam_direction)
-            intersection_point = cluster_mean + t_intersection * direction_vector
+            # Calculate the direction vector
+            end_point, start_point, beam_vector, dirVecTrackNorm, track_mean = get_directions(cluster_data[:, :3])
+            track_vector = end_point - start_point
 
             # Calculate the angle between the cluster direction vector and the beamline
-            angle = angle_between(direction_vector, beam_direction)
+            angle = angle_between(track_vector, beam_vector)
 
             # Store results
-            intersections[label] = intersection_point
+
             angles[label] = round(angle, 2)
 
             # print(f"Label: {label}, Angle with beam line: {angle:.2f} degrees")
@@ -692,13 +684,12 @@ def kinematics_gmm(data, beam_start=np.array([0, 128, 128]), beam_end=np.array([
             # Plot the fitted line for the cluster in XY projection
             # Define two endpoints for the line segment along the direction vector
             line_length = 100  # Adjust line length as needed
-            line_start = cluster_mean - line_length * direction_vector
-            line_end = cluster_mean + line_length * direction_vector
-            print('gmm label',label)
-            print(line_start[0],line_start[1],line_start[2], line_end[0], line_end[1],line_end[2])
-            ax11.plot([line_start[0], line_end[0]], [line_start[1], line_end[1]], label=f'Fitted Line {label}')
-            ax12.plot([line_start[1], line_end[1]], [line_start[2], line_end[2]], label=f'Fitted Line {label}')
-            ax13.plot([line_start[0], line_end[0]], [line_start[2], line_end[2]], label=f'Fitted Line {label}')
+            line_start = track_mean - line_length * dirVecTrackNorm
+            line_end = track_mean + line_length * dirVecTrackNorm
+            if plots:
+                ax11.plot([line_start[0], line_end[0]], [line_start[1], line_end[1]], label=f'Fitted Line {label}')
+                ax12.plot([line_start[1], line_end[1]], [line_start[2], line_end[2]], label=f'Fitted Line {label}')
+                ax13.plot([line_start[0], line_end[0]], [line_start[2], line_end[2]], label=f'Fitted Line {label}')
     return angles, low_energy_track_count
 
 # Function to do final plots
@@ -766,6 +757,121 @@ def beam_track_data(data_array):
     # print(unique_beam_ransac, unique_track_ransac)
     # print(unique_beam_gmm, unique_track_gmm)
     return unique_beam_ransac, unique_track_ransac, unique_beam_gmm, unique_track_gmm
+
+# Function to find closest points on line
+def find_closest_points_on_line(data, direction_vector, cluster_mean):
+    """
+    Finds the closest points on a line passing through cluster_mean and oriented along direction_vector for each point in data.
+
+    Args:
+        data: A NumPy array of shape (n, 3) containing the track data.
+        direction_vector: A NumPy array of shape (3,) representing the direction of the line.
+        cluster_mean: A NumPy array of shape (3,) representing the point through which the line passes (mean of the data).
+
+    Returns:
+        A NumPy array of shape (n, 3) containing the closest points on the line for each point in data.
+    """
+    # Normalize the direction vector
+    direction_vector = direction_vector / np.linalg.norm(direction_vector)
+
+    # Translate points so cluster_mean is the origin
+    centered_data = data - cluster_mean
+
+    # Project each centered point onto the direction vector
+    projections = np.dot(centered_data, direction_vector).reshape(-1, 1)
+
+    # Get the closest points by moving along the direction vector and add the mean back
+    closest_points = cluster_mean + projections * direction_vector
+
+    return closest_points
+
+# Function to find the start and the end points
+def start_end_points(pca_points, beam_mean, dirVecBeam):
+    """
+    Finds the start and end points on the PCA line based on the shortest and longest distances
+    to the beam line.
+
+    Args:
+        pca_points: A NumPy array of shape (n, 3) containing the closest points on the PCA line.
+        beam_mean: A NumPy array of shape (3,) representing the starting point of the beam line.
+        dirVecBeam: A NumPy array of shape (3,) representing the normalized direction vector of the beam line.
+
+    Returns:
+        start_point: The point on the PCA line with the shortest distance to the beam line.
+        end_point: The point on the PCA line with the longest distance to the beam line.
+        distances: A list of distances from each PCA point to the beam line.
+    """
+    distances = []
+    closest_points_on_beam = []
+
+    for point in pca_points:
+        # Find the closest point on the beam line for each PCA point
+        closest_point = find_closest_points_on_line(point, dirVecBeam, beam_mean)
+        # Calculate the distance between the point on the PCA line and the closest point on the beam line
+        distance = np.linalg.norm(point - closest_point)
+        distances.append(distance)
+        closest_points_on_beam.append(closest_point)
+
+    # Convert distances to a numpy array for easier indexing
+    distances = np.array(distances)
+
+    # Find the index of the point with the smallest and largest distance
+    start_index = np.argmin(distances)
+    end_index = np.argmax(distances)
+
+    # Return the start and end points based on the distances
+    start_point = pca_points[start_index]
+    end_point = pca_points[end_index]
+
+    return start_point, end_point
+
+# Function to plot the kinematics of GMM Clusters
+def get_directions(data, beam_start=np.array([0, 128, 128]), beam_end=np.array([256, 128, 128])):
+    pca = PCA(n_components=1)
+    pca.fit(data)
+    dirVecTrack = pca.components_[0]
+    dirVecTrackNorm = dirVecTrack / np.linalg.norm(dirVecTrack)
+    track_mean = pca.mean_
+    closest_points = find_closest_points_on_line(data, dirVecTrack, track_mean)
+    if plots:
+        ax11.scatter(closest_points[:, 0], closest_points[:, 1], color='red', label='Closest Points on PCA Line')
+        ax12.scatter(closest_points[:, 1], closest_points[:, 2], color='red', label='Closest Points on PCA Line')
+        ax13.scatter(closest_points[:, 0], closest_points[:, 2], color='red', label='Closest Points on PCA Line')
+    beam_vector = beam_end - beam_start
+    start_point, end_point = start_end_points(closest_points, beam_mean=np.array([128, 128, 128]), dirVecBeam=beam_vector)
+    if plots:
+        if start_point[0] < end_point[0]:
+            start_point_x = start_point[0]
+            end_point_x = end_point[0]
+        else:
+            start_point_x = end_point[0]
+            end_point_x = start_point[0]
+        if start_point[1] < end_point[1]:
+            start_point_y = start_point[1]
+            end_point_y = end_point[1]
+        else:
+            start_point_y = end_point[1]
+            end_point_y = start_point[1]
+        if start_point[2] < end_point[2]:
+            start_point_z = start_point[2]
+            end_point_z = end_point[2]
+        else:
+            start_point_z = end_point[2]
+            end_point_z = start_point[2]
+        ax11.scatter(start_point[0], start_point[1], color='blue', marker='x', label='Start Point', s=100)
+        ax11.scatter(end_point[0], end_point[1], color='green', marker='x', label='End Point', s=100)
+        ax11.set_xlim(start_point_x-10, end_point_x+10)
+        ax11.set_ylim(start_point_y-10, end_point_y+10)
+        ax12.scatter(start_point[1], start_point[2], color='blue', marker='x', label='Start Point', s=100)
+        ax12.scatter(end_point[1], end_point[2], color='green', marker='x', label='End Point', s=100)
+        ax12.set_xlim(start_point_y-10, end_point_y+10)
+        ax12.set_ylim(start_point_z-10, end_point_z+10)
+        ax13.scatter(start_point[0], start_point[2], color='blue', marker='x', label='Start Point', s=100)
+        ax13.scatter(end_point[0], end_point[2], color='green', marker='x', label='End Point', s=100)
+        ax13.set_xlim(start_point_x-10, end_point_x+10)
+        ax13.set_ylim(start_point_z-10, end_point_z+10)
+    return end_point, start_point, beam_vector, dirVecTrackNorm, track_mean
+
 
 #######################################
 # Main Function
@@ -913,6 +1019,9 @@ for energy in excitation_energies:
                         plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1, hspace=0.3, wspace=0.3)
                         plt.show(block=False)
                         next_pressed = False
+                        if save_python_figures:
+                            next_pressed = True
+                            fig.savefig('event_'+str(entries.data.event)+'.png')
                         while not next_pressed:
                             plt.waitforbuttonpress(0.1)
                         if next_pressed:
