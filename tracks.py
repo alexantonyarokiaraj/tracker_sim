@@ -30,6 +30,7 @@ import os
 from sklearn.metrics import adjusted_rand_score
 from write import create_tree_and_branches, fill_event_data_to_tree
 import pickle
+from enum import Enum
 
 np.random.seed(42)
 
@@ -45,15 +46,15 @@ split_strings = input_string.split('@')
 excitation_energies=[split_strings[0]]
 cm_angles=[split_strings[1]]
 path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/DATA/SIMULATION/5000/"
-plots = True
+plots = False
 sim = True
 debug=False
 final_plots_flag = False
-event_start =320
-event_end = 323
+event_start = 1
+event_end = 20
 save_final_data=False
-with_missing_pads = True
-batch_mode = False
+with_missing_pads = False
+batch_mode = True
 save_to_root = False
 save_python_figures = False
 
@@ -103,6 +104,13 @@ line_length = 100
 transparency = 0.7
 beam_zone_low = 122
 beam_zone_high = 132
+
+class VolumeBoundaries(Enum):
+    VOLUME_MIN = 10
+    VOLUME_MAX = 246
+    BEAM_ZONE_MIN = 122
+    BEAM_ZONE_MAX = 132
+    BEAM_CENTER = 128
 
 #######################################
 # Graphics
@@ -609,8 +617,9 @@ def fit_gmm_with_bic(data, max_components=10):
 
     # Fit the best GMM model and predict labels
     best_labels = best_gmm.predict(features)
+    responsibilities = best_gmm.predict_proba(features)
 
-    return best_labels, best_n_components
+    return best_labels, best_n_components, responsibilities
 
 # Function to plot the GMM assigned clusters
 def plot_gmm(data_array, event_info):
@@ -637,66 +646,101 @@ def plot_gmm(data_array, event_info):
     return [colorbar7, colorbar8, colorbar9]
 
 # Function to plot the kinematics of GMM Clusters
-def kinematics_gmm(data):
+def kinematics_gmm(data, responsibilities, event_info):
     """
     Analyze clusters based on GMM labels to find direction vectors, intersections with a beam line,
     and angles. Plot the clusters with their fitted line in XY projection.
 
     Parameters:
-    - data (np.ndarray): Input data array with columns [x, y, z, true labels, ransac labels, gmm labels].
+    - data (np.ndarray): Input data array with columns [x, y, z, q, true labels, ransac labels, gmm labels].
 
     Returns:
     - intersections (dict): Dictionary of intersections for qualifying clusters.
     - angles (dict): Dictionary of angles (in degrees) between the cluster direction vectors and the beamline.
     """
-    intersections = {}
-    angles = {}
 
-    # Group by GMM labels
+    intersections_initial = {}
+    lab_angles_initial = {}
+    lab_angles_minimize = {}
+    data = add_filters(data)
     gmm_labels = np.unique(data[:, 6])
-
-    low_energy_track_count = 0
-
     for label in gmm_labels:
-        # Filter data for the current cluster
         cluster_data = data[data[:, 6] == label]
         if len(cluster_data) < 10:
             continue  # Skip clusters with fewer than 10 points
-
         # Calculate the mean of Y coordinate
         mean_y = np.mean(cluster_data[:, 1])
-        if (mean_y >= beam_zone_high or mean_y < beam_zone_low) and cluster_data.shape[0] >= 10:
+        if (mean_y >= VolumeBoundaries.BEAM_ZONE_MAX.value or mean_y < VolumeBoundaries.BEAM_ZONE_MIN.value) and cluster_data.shape[0] >= 10:
+            mask = (
+                    (cluster_data[:, 7] == 1) &  # Column 8: (beam_track_flag_col) = 1
+                    (cluster_data[:, 8] == 1) &  # Column 9: (volume_check_flag_col) = 1
+                    (cluster_data[:, 9] == 1) &  # Column 10: (intersection_flag_col) = 1
+                    ((cluster_data[:, 10] == 1) | (cluster_data[:, 10] == -1)) &  # Column 11: (side_flag_col) = 1 or -1
+                    ((cluster_data[:, 11] == 1) | (cluster_data[:, 11] == -1)) & # Column 12: (proximity_flag_col) = 1 or 2
+                    (cluster_data[:, 12] == 1) # Column 12: Track End point above the beam zone
+                )
+            if cluster_data[mask, :3].size > 0:
+                # Fill the lab angles and intersections based on first PCA fit.
+                end_point, start_point, beam_vector, dirVecTrackNorm, track_mean, closest_points = get_directions(cluster_data[mask, :3])
+                track_vector = end_point - start_point
+                lab_angle = angle_between(track_vector, beam_vector)
+                intersection_point = closest_point_on_line1(start_point, track_vector, np.array([0,128,128]), beam_vector)
+                lab_angles_initial[label] = round(lab_angle, 2)
+                intersections_initial[label] = intersection_point
+                if plots:
+                    plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection_point, closest_points)
+                # print('Track inside Volume', start_point, end_point, intersection_point, np.unique(cluster_data[:, 10]), np.unique(cluster_data[:, 11]), np.unique(cluster_data[:, 12]))
+            else:
+                end_point, start_point, beam_vector, dirVecTrackNorm, track_mean, closest_points = get_directions(cluster_data[:, :3])
+                track_vector = end_point - start_point
+                intersection_point = closest_point_on_line1(start_point, track_vector, np.array([0,128,128]), beam_vector)
+                # print('Track not inside Volume', start_point, end_point, intersection_point, np.unique(cluster_data[:, 10]), np.unique(cluster_data[:, 11]), np.unique(cluster_data[:, 12]))
+                # if 0 in np.unique(cluster_data[:, 12]):
+                #     print('Track End point inside')
+                if plots:
+                    plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection_point, closest_points)
 
-
-            # Calculate the direction vector
-            end_point, start_point, beam_vector, dirVecTrackNorm, track_mean = get_directions(cluster_data[:, :3])
-            track_vector = end_point - start_point
-
-            # Calculate the angle between the cluster direction vector and the beamline
-            angle = angle_between(track_vector, beam_vector)
-
-            # Calculate the intersections
-            intersection_point = closest_point_on_line1(start_point, track_vector, np.array([0,128,128]), beam_vector)
-
-            # Store results
-            angles[label] = round(angle, 2)
-            intersections[label] = intersection_point
-
-            # print(f"Label: {label}, Angle with beam line: {angle:.2f} degrees")
-
-            # Plot the fitted line for the cluster in XY projection
-            # Define two endpoints for the line segment along the direction vector
-            line_length = 100  # Adjust line length as needed
-            line_start = track_mean - line_length * dirVecTrackNorm
-            line_end = track_mean + line_length * dirVecTrackNorm
-            if plots:
-                ax11.plot([line_start[0], line_end[0]], [line_start[1], line_end[1]], label=f'Fitted Line {label}')
-                ax11.scatter(intersection_point[0], intersection_point[1], color='blue', marker='o', label='Intersection Point', s=100)
-                ax12.plot([line_start[1], line_end[1]], [line_start[2], line_end[2]], label=f'Fitted Line {label}')
-                ax12.scatter(intersection_point[1], intersection_point[2], color='blue', marker='o', label='Intersection Point', s=100)
-                ax13.plot([line_start[0], line_end[0]], [line_start[2], line_end[2]], label=f'Fitted Line {label}')
-                ax13.scatter(intersection_point[0], intersection_point[2], color='blue', marker='o', label='Intersection Point', s=100)
-    return angles, low_energy_track_count
+            # Start Minimization
+            lab_angles_resp = {}
+            range_1 = np.linspace(0, 0.01, 50)
+            range_2 = np.linspace(0.01, 0.1, 50)
+            range_3 = np.linspace(0.1, 0.2, 50)
+            range_4 = np.linspace(0.2, 0.3, 50)
+            range_5 = np.linspace(0.3, 0.4, 50)
+            range_6 = np.linspace(0.4, 0.5, 50)
+            range_7 = np.linspace(0.5, 1, 10)
+            # Concatenate all ranges
+            beam_zone_mask = (data_array[:, 1] >= 120) & (data_array[:, 1] <= 134)
+            labels_for_current_label = data_array[:, 6] == label
+            not_belonging_to_label = ~labels_for_current_label
+            inside_beam_zone_not_label = beam_zone_mask & not_belonging_to_label
+            res = np.concatenate([range_1, range_2, range_3, range_4, range_5, range_6, range_7])
+            if cluster_data[mask, :3].size > 0:
+                for res_threshold in res:
+                    responsibility_threshold = res_threshold
+                    responsibility_mask = responsibilities[:, int(label)] > responsibility_threshold
+                    final_mask = inside_beam_zone_not_label & responsibility_mask
+                    data_for_angle = np.vstack((cluster_data[mask, :3], data[final_mask, :3]))
+                    end_point, start_point, beam_vector, dirVecTrackNorm, track_mean, closest_points = get_directions(data_for_angle)
+                    track_vector = end_point - start_point
+                    lab_angle_p = angle_between(track_vector, beam_vector)
+                    lab_angles_resp[res_threshold] = round(lab_angle_p, 2)
+                lab_angles_minimize[label] = lab_angles_resp
+                closest_threshold, closest_angle = min(lab_angles_resp.items(), key=lambda item: abs(item[1] - event_info.Elab))
+                responsibility_threshold = closest_threshold
+                responsibility_mask = responsibilities[:, int(label)] > responsibility_threshold
+                final_mask = inside_beam_zone_not_label & responsibility_mask
+                data_for_angle = np.vstack((cluster_data[mask, :3], data[final_mask, :3]))
+                end_point, start_point, beam_vector, dirVecTrackNorm, track_mean, closest_points = get_directions(data_for_angle)
+                track_vector = end_point - start_point
+                print('Lowest Angle, Threshold', round(angle_between(track_vector, beam_vector), 2), closest_threshold)
+                if plots:
+                    intersection_point = closest_point_on_line1(start_point, track_vector, np.array([0,128,128]), beam_vector)
+                    plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection_point, closest_points)
+                    ax11.scatter(data[final_mask, 0]+1, data[final_mask, 1]+1, marker = 'o')
+                    ax12.scatter(data[final_mask, 1]+1, data[final_mask, 2]+1, marker = 'o')
+                    ax13.scatter(data[final_mask, 0]+1, data[final_mask, 2]+1, marker = 'o')
+    return lab_angles_initial, intersections_initial, lab_angles_minimize
 
 # Function to do final plots
 def final_plots(axes_final, bin_range, bin_width, plot_list, notation):
@@ -783,7 +827,6 @@ def find_closest_points_on_line(data, direction_vector, cluster_mean):
     # Translate points so cluster_mean is the origin
     centered_data = data - cluster_mean
 
-    # Project each centered point onto the direction vector
     projections = np.dot(centered_data, direction_vector).reshape(-1, 1)
 
     # Get the closest points by moving along the direction vector and add the mean back
@@ -839,44 +882,17 @@ def get_directions(data, beam_start=np.array([0, 128, 128]), beam_end=np.array([
     dirVecTrackNorm = dirVecTrack / np.linalg.norm(dirVecTrack)
     track_mean = pca.mean_
     closest_points = find_closest_points_on_line(data, dirVecTrack, track_mean)
-    if plots:
-        ax11.scatter(closest_points[:, 0], closest_points[:, 1], color='red', label='Closest Points on PCA Line')
-        ax12.scatter(closest_points[:, 1], closest_points[:, 2], color='red', label='Closest Points on PCA Line')
-        ax13.scatter(closest_points[:, 0], closest_points[:, 2], color='red', label='Closest Points on PCA Line')
     beam_vector = beam_end - beam_start
     start_point, end_point = start_end_points(closest_points, beam_mean=np.array([128, 128, 128]), dirVecBeam=beam_vector)
-    if plots:
-        if start_point[0] < end_point[0]:
-            start_point_x = start_point[0]
-            end_point_x = end_point[0]
-        else:
-            start_point_x = end_point[0]
-            end_point_x = start_point[0]
-        if start_point[1] < end_point[1]:
-            start_point_y = start_point[1]
-            end_point_y = end_point[1]
-        else:
-            start_point_y = end_point[1]
-            end_point_y = start_point[1]
-        if start_point[2] < end_point[2]:
-            start_point_z = start_point[2]
-            end_point_z = end_point[2]
-        else:
-            start_point_z = end_point[2]
-            end_point_z = start_point[2]
-        ax11.scatter(start_point[0], start_point[1], color='blue', marker='x', label='Start Point', s=100)
-        ax11.scatter(end_point[0], end_point[1], color='green', marker='x', label='End Point', s=100)
-        ax11.set_xlim(start_point_x-10, end_point_x+10)
-        ax11.set_ylim(start_point_y-10, end_point_y+10)
-        ax12.scatter(start_point[1], start_point[2], color='blue', marker='x', label='Start Point', s=100)
-        ax12.scatter(end_point[1], end_point[2], color='green', marker='x', label='End Point', s=100)
-        ax12.set_xlim(start_point_y-10, end_point_y+10)
-        ax12.set_ylim(start_point_z-10, end_point_z+10)
-        ax13.scatter(start_point[0], start_point[2], color='blue', marker='x', label='Start Point', s=100)
-        ax13.scatter(end_point[0], end_point[2], color='green', marker='x', label='End Point', s=100)
-        ax13.set_xlim(start_point_x-10, end_point_x+10)
-        ax13.set_ylim(start_point_z-10, end_point_z+10)
-    return end_point, start_point, beam_vector, dirVecTrackNorm, track_mean
+    # Calculate distances of each point's y-coordinate from the beam zone
+    dist_start = min(abs(start_point[1] - VolumeBoundaries.BEAM_CENTER.value),
+                    abs(start_point[1] - VolumeBoundaries.BEAM_CENTER.value))
+    dist_end = min(abs(end_point[1] - VolumeBoundaries.BEAM_CENTER.value),
+                abs(end_point[1] - VolumeBoundaries.BEAM_CENTER.value))
+    # Swap points if end_point is closer to the beam zone than start_point
+    if dist_end < dist_start:
+        start_point, end_point = end_point, start_point
+    return end_point, start_point, beam_vector, dirVecTrackNorm, track_mean, closest_points
 
 # Function to get the intersection by using the closest distance between two lines.
 def closest_point_on_line1(p1, d1, q1, d2):
@@ -914,6 +930,106 @@ def closest_point_on_line1(p1, d1, q1, d2):
     closest_point_line1 = p1 + t * d1
 
     return closest_point_line1
+
+# Function to add filters to the data array
+def add_filters(data):
+    # - data (np.ndarray): Input data array with columns [x, y, z, q, true labels, ransac labels, gmm labels].
+
+    # Initialize additional columns
+    beam_track_flag_col = np.zeros((data.shape[0], 1))    # Column 8
+    volume_check_flag_col = np.zeros((data.shape[0], 1))  # Column 9
+    intersection_flag_col = np.zeros((data.shape[0], 1))  # Column 10
+    side_flag_col = np.zeros((data.shape[0], 1))          # Column 11
+    proximity_flag_col = np.zeros((data.shape[0], 1))     # Column 12
+    end_point_flag_col = np.zeros((data.shape[0], 1))     # Column 13
+
+    # Unique GMM labels identify tracks
+    gmm_labels = np.unique(data[:, 6])  # Assuming GMM labels are in the 7th column
+
+    side_tracks = {'above': [], 'below': []}
+
+    for label in gmm_labels:
+        # Select track data and indices
+        cluster_data = data[data[:, 6] == label]
+        track_indices = np.where(data[:, 6] == label)[0]
+
+        # Calculate mean_y for determining beam or scattered track (Column 8)
+        mean_y = np.mean(cluster_data[:, 1])
+        if VolumeBoundaries.BEAM_ZONE_MIN.value <= mean_y <= VolumeBoundaries.BEAM_ZONE_MAX.value:
+            beam_track_flag_col[track_indices] = 0  # Beam track
+        else:
+            beam_track_flag_col[track_indices] = 1  # Scattered track
+
+            # Only apply additional filters to scattered tracks
+            # Determine side relative to beam zone for scattered tracks (Column 11) above = 1, below = -1
+            side_flag_col[track_indices] = 1 if mean_y > VolumeBoundaries.BEAM_ZONE_MAX.value else -1
+            side_key = 'above' if mean_y > VolumeBoundaries.BEAM_ZONE_MAX.value else 'below'
+
+            # Calculate start and end points to check if within volume (Column 9)
+            end_point, start_point, beam_vector, _, _, _ = get_directions(cluster_data[:, :3])
+            within_volume = lambda point: all(VolumeBoundaries.VOLUME_MIN.value <= coord <= VolumeBoundaries.VOLUME_MAX.value for coord in point)
+            volume_check_flag_col[track_indices] = 1 if (within_volume(start_point) and within_volume(end_point)) else 0
+
+            # Check intersection point with the beam vector for volume (Column 10)
+            track_vector = end_point - start_point
+            intersection_point = closest_point_on_line1(start_point, track_vector, np.array([0, 128, 128]), beam_vector)
+            intersection_flag_col[track_indices] = 1 if within_volume(intersection_point) else 0
+
+            is_not_within_beam_zone = end_point[1] > VolumeBoundaries.BEAM_ZONE_MAX.value + 4 or end_point[1] < VolumeBoundaries.BEAM_ZONE_MIN.value - 4
+            if is_not_within_beam_zone:
+                end_point_flag_col[track_indices] =1
+
+            # Determine proximity flags (Column 12) for closest track to beam zone on each side
+
+            side_tracks['above'].append((cluster_data, track_indices)) if mean_y > VolumeBoundaries.BEAM_ZONE_MAX.value else side_tracks['below'].append((cluster_data, track_indices))
+
+    for side, tracks in side_tracks.items():
+        if tracks:
+            # Find the closest track to the beam zone on this side
+            closest_track_data, closest_indices = min(
+                [(track_data, indices) for track_data, indices in tracks],
+                key=lambda t: abs(get_directions(t[0][:, :3])[1][1] - (VolumeBoundaries.BEAM_ZONE_MIN.value if side == 'below' else VolumeBoundaries.BEAM_ZONE_MAX.value)),
+                default=(None, None)
+            )
+            if closest_track_data is not None:
+                # Set proximity flag for the closest track
+                proximity_flag_col[closest_indices] = 1 if side == 'above' else -1
+            # Set flags for other tracks on this side
+            for track_data, indices in tracks:
+                if not np.array_equal(track_data, closest_track_data):
+                    proximity_flag_col[indices] = 2 if side == 'above' else -2
+
+    # Append new columns to the original data array
+    data_with_flags = np.hstack([data, beam_track_flag_col, volume_check_flag_col, intersection_flag_col, side_flag_col, proximity_flag_col, end_point_flag_col])
+
+    return data_with_flags
+
+# Function to add plot lines
+def plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection_point, closest_points):
+    line_length = 100  # Adjust line length as needed
+    line_start = track_mean - line_length * dirVecTrackNorm
+    line_end = track_mean + line_length * dirVecTrackNorm
+    ax11.scatter(start_point[0], start_point[1], color='blue', marker='x', label='Start Point', s=500)
+    ax11.scatter(end_point[0], end_point[1], color='green', marker='x', label='End Point', s=200)
+    # ax11.set_xlim(start_point[0]-10, end_point[0]+10)
+    # ax11.set_ylim(start_point[1]-10, end_point[1]+10)
+    ax12.scatter(start_point[1], start_point[2], color='blue', marker='x', label='Start Point', s=500)
+    ax12.scatter(end_point[1], end_point[2], color='green', marker='x', label='End Point', s=200)
+    # ax12.set_xlim(start_point[1]-10, end_point[1]+10)
+    # ax12.set_ylim(start_point[2]-10, end_point[2]+10)
+    ax13.scatter(start_point[0], start_point[2], color='blue', marker='x', label='Start Point', s=500)
+    ax13.scatter(end_point[0], end_point[2], color='green', marker='x', label='End Point', s=200)
+    # ax13.set_xlim(start_point[0]-10, end_point[0]+10)
+    # ax13.set_ylim(start_point[2]-10, end_point[2]+10)
+    ax11.plot([line_start[0], line_end[0]], [line_start[1], line_end[1]], label=f'Fitted Line')
+    ax11.scatter(intersection_point[0], intersection_point[1], color='blue', marker='o', label='Intersection Point', s=100)
+    ax12.plot([line_start[1], line_end[1]], [line_start[2], line_end[2]], label=f'Fitted Line')
+    ax12.scatter(intersection_point[1], intersection_point[2], color='blue', marker='o', label='Intersection Point', s=100)
+    ax13.plot([line_start[0], line_end[0]], [line_start[2], line_end[2]], label=f'Fitted Line')
+    ax13.scatter(intersection_point[0], intersection_point[2], color='blue', marker='o', label='Intersection Point', s=100)
+    ax11.scatter(closest_points[:, 0], closest_points[:, 1], color='red', label='Closest Points on PCA Line', s=20)
+    ax12.scatter(closest_points[:, 1], closest_points[:, 2], color='red', label='Closest Points on PCA Line', s=20)
+    ax13.scatter(closest_points[:, 0], closest_points[:, 2], color='red', label='Closest Points on PCA Line', s=20)
 
 #######################################
 # Main Function
@@ -1009,11 +1125,12 @@ for energy in excitation_energies:
 
                     #Get Prediced Labels from GMM
                     # data_array = [0-x,1-y,2-z,3-q, 4-true labels, 5-ransac labels, 6-gmm labels]
-                    gmm_labels, n_comp = fit_gmm_with_bic(data_array, max_components=10)
+                    gmm_labels, n_comp, responsibilities = fit_gmm_with_bic(data_array, max_components=10)
                     data_array = np.column_stack((data_array, gmm_labels))
+
                     if plots:
                         colorbars_gmm = plot_gmm(data_array, event_info)
-                    angles_gmm, low_energy_track_count_gmm = kinematics_gmm(data_array)
+                    angles_gmm, intersections_gmm, angles_minimize_gmm = kinematics_gmm(data_array, responsibilities, event_info)
                     gmm['components'] = len(np.unique(gmm_labels))
                     gmm['angles'] = angles_gmm
                     print('GMM angles', angles_gmm)
@@ -1047,7 +1164,6 @@ for energy in excitation_energies:
                     # Append to the list of named tuples
                     event_info = event_info._replace(ransac=ransac)
                     event_info = event_info._replace(gmm=gmm)
-
 
                     EventInfoList.append(event_info)
 

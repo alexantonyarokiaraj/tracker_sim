@@ -1,2 +1,9 @@
-1. Get the start point and end point of all the scattered tracks - work in progress
-2. Angle Issue with more than 90 degrees
+1. Get the start point and end point of all the scattered tracks - Solved
+2. Angle Issue with more than 90 degrees - Solved
+3. Intersection of the Scattered Track with the beamline - Solved
+4. Minimization for Lab Angle based on the posterior probabilities - Solved
+5. Add Filters for start point, end point, intersection - Solved
+6. Handle Return from Minimization - in GMM
+7. Save returns from GMM to ROOT.
+8. Add Filters for RANSAC.
+9. Save returns from RANSAC to ROOT.
