@@ -22,11 +22,21 @@ def create_tree_and_branches(tree_name):
     ransac_track_comp = ROOT.std.vector("int")()
     ransac_ari = ROOT.std.vector("float")()
     ransac_angles = ROOT.std.vector("float")()
+    ransac_inter = ROOT.std.vector("float")()
+    ransac_start = ROOT.std.vector("float")()
+    ransac_end = ROOT.std.vector("float")()
     gmm_comp = ROOT.std.vector("int")()
     gmm_beam_comp = ROOT.std.vector("int")()
     gmm_track_comp = ROOT.std.vector("int")()
     gmm_ari = ROOT.std.vector("float")()
     gmm_angles = ROOT.std.vector("float")()
+    gmm_inter = ROOT.std.vector("float")()
+    gmm_start = ROOT.std.vector("float")()
+    gmm_end = ROOT.std.vector("float")()
+    gmm_resp = ROOT.std.vector("float")()
+    gmm_resp_angle = ROOT.std.vector("float")()
+    gmm_min_res = ROOT.std.vector("float")()
+    gmm_min_angle = ROOT.std.vector("float")()
     gmm_bb_metric = ROOT.std.vector("float")()
     gmm_bt_metric = ROOT.std.vector("float")()
     gmm_tt_metric = ROOT.std.vector("float")()
@@ -46,11 +56,21 @@ def create_tree_and_branches(tree_name):
     tree.Branch("ransac_track_comp", ransac_track_comp)
     tree.Branch("ransac_ari", ransac_ari)
     tree.Branch("ransac_angles", ransac_angles)
+    tree.Branch("ransac_inter", ransac_inter)
+    tree.Branch("ransac_start", ransac_start)
+    tree.Branch("ransac_end", ransac_end)
     tree.Branch("gmm_comp", gmm_comp)
     tree.Branch("gmm_beam_comp", gmm_beam_comp)
     tree.Branch("gmm_track_comp", gmm_track_comp)
     tree.Branch("gmm_ari", gmm_ari)
     tree.Branch("gmm_angles", gmm_angles)
+    tree.Branch("gmm_inter", gmm_inter)
+    tree.Branch("gmm_start", gmm_start)
+    tree.Branch("gmm_end", gmm_end)
+    tree.Branch("gmm_resp", gmm_resp)
+    tree.Branch("gmm_resp_angle", gmm_resp_angle)
+    tree.Branch("gmm_min_res", gmm_min_res)
+    tree.Branch("gmm_min_angle", gmm_min_angle)
     tree.Branch("gmm_bb_metric", gmm_bb_metric)
     tree.Branch("gmm_bt_metric", gmm_bt_metric)
     tree.Branch("gmm_tt_metric", gmm_tt_metric)
@@ -71,11 +91,21 @@ def create_tree_and_branches(tree_name):
         "ransac_track_comp": ransac_track_comp,
         "ransac_ari": ransac_ari,
         "ransac_angles": ransac_angles,
+        "ransac_inter": ransac_inter,
+        "ransac_start": ransac_start,
+        "ransac_end": ransac_end,
         "gmm_comp": gmm_comp,
         "gmm_beam_comp": gmm_beam_comp,
         "gmm_track_comp": gmm_track_comp,
         "gmm_ari": gmm_ari,
         "gmm_angles": gmm_angles,
+        "gmm_inter": gmm_inter,
+        "gmm_start": gmm_start,
+        "gmm_end": gmm_end,
+        "gmm_resp": gmm_resp,
+        "gmm_resp_angle": gmm_resp_angle,
+        "gmm_min_res": gmm_min_res,
+        "gmm_min_angle": gmm_min_angle,
         "gmm_bb_metric": gmm_bb_metric,
         "gmm_tt_metric": gmm_tt_metric,
         "gmm_bt_metric": gmm_bt_metric
@@ -99,11 +129,21 @@ def fill_event_data_to_tree(result, event_data):
     ransac_track_comp = result["ransac_track_comp"]
     ransac_ari = result["ransac_ari"]
     ransac_angles = result["ransac_angles"]
+    ransac_inter = result["ransac_inter"]
+    ransac_start = result["ransac_start"]
+    ransac_end = result["ransac_end"]
     gmm_comp = result["gmm_comp"]
     gmm_beam_comp = result["gmm_beam_comp"]
     gmm_track_comp = result["gmm_track_comp"]
     gmm_ari = result["gmm_ari"]
     gmm_angles = result["gmm_angles"]
+    gmm_inter = result["gmm_inter"]
+    gmm_start = result["gmm_start"]
+    gmm_end = result["gmm_end"]
+    gmm_resp = result["gmm_resp"]
+    gmm_resp_angle = result["gmm_resp_angle"]
+    gmm_min_res = result["gmm_min_res"]
+    gmm_min_angle = result["gmm_min_angle"]
     gmm_bb_metric = result["gmm_bb_metric"]
     gmm_bt_metric = result["gmm_bt_metric"]
     gmm_tt_metric = result["gmm_tt_metric"]
@@ -123,11 +163,21 @@ def fill_event_data_to_tree(result, event_data):
     ransac_track_comp.clear()
     ransac_ari.clear()
     ransac_angles.clear()
+    ransac_inter.clear()
+    ransac_start.clear()
+    ransac_end.clear()
     gmm_comp.clear()
     gmm_beam_comp.clear()
     gmm_track_comp.clear()
     gmm_ari.clear()
     gmm_angles.clear()
+    gmm_inter.clear()
+    gmm_start.clear()
+    gmm_end.clear()
+    gmm_resp.clear()
+    gmm_resp_angle.clear()
+    gmm_min_res.clear()
+    gmm_min_angle.clear()
     gmm_bb_metric.clear()
     gmm_bt_metric.clear()
     gmm_tt_metric.clear()
@@ -157,6 +207,41 @@ def fill_event_data_to_tree(result, event_data):
     # Iterate and Fill
     for angle in event_data.ransac["angles"].values():
         ransac_angles.push_back(angle)
+
+    for inter in event_data.ransac["intersections"].values():
+        for element in inter:
+            ransac_inter.push_back(element)
+
+    for start in event_data.ransac["start_point"].values():
+        for element in start:
+            ransac_start.push_back(element)
+
+    for end_point in event_data.ransac["end_point"].values():
+        for element in end_point:
+            ransac_end.push_back(element)
+
+    for inter in event_data.gmm["intersections"].values():
+        for element in inter:
+            gmm_inter.push_back(element)
+
+    for start in event_data.gmm["start_point"].values():
+        for element in start:
+            gmm_start.push_back(element)
+
+    for end_point in event_data.gmm["end_point"].values():
+        for element in end_point:
+            gmm_end.push_back(element)
+
+    for resp in event_data.gmm["resp"].values():
+        for thresholds, angles in resp.items():
+            gmm_resp.push_back(thresholds)
+            gmm_resp_angle.push_back(angles)
+
+    for closest_threshold in event_data.gmm["min_res"].values():
+        gmm_min_res.push_back(closest_threshold)
+
+    for closest_angle in event_data.gmm["min_angle"].values():
+        gmm_min_angle.push_back(closest_angle)
 
     for angle in event_data.gmm["angles"].values():
         gmm_angles.push_back(angle)

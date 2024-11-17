@@ -50,12 +50,12 @@ plots = False
 sim = True
 debug=False
 final_plots_flag = False
-event_start = 640
-event_end = 680
+event_start = int(split_strings[2])
+event_end = int(split_strings[3])
 save_final_data=False
 with_missing_pads = False
 batch_mode = True
-save_to_root = False
+save_to_root = True
 save_python_figures = False
 
 np.set_printoptions(threshold=np.inf)
@@ -490,6 +490,8 @@ def kinematics_ransac(data, fitted_models, useLineModelND):
     data = add_filters(data, model=int(5))
     lab_angles_initial = {}
     intersections_initial = {}
+    start_point_initial = {}
+    end_point_initial = {}
     ransac_labels = np.unique(data[:, 5])
     for label in ransac_labels:
         # Get the points corresponding to the current label
@@ -519,6 +521,8 @@ def kinematics_ransac(data, fitted_models, useLineModelND):
                 intersection_point = closest_point_on_line1(start_point, track_vector, np.array([0,128,128]), beam_vector)
                 lab_angles_initial[label] = round(lab_angle, 2)
                 intersections_initial[label] = intersection_point
+                start_point_initial[label] = start_point
+                end_point_initial[label] = end_point
                 if plots:
                     plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection_point, closest_points, ax8, ax9, ax10)
                     if not useLineModelND:
@@ -545,7 +549,7 @@ def kinematics_ransac(data, fitted_models, useLineModelND):
                         model_params = fitted_models[label].params
                         threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2 = return_threshold_lines(np.array(model_params[0]), np.array(model_params[1]))
                         plot_threshold_lines(np.array(model_params[0]), np.array(model_params[1]), threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2)
-    return lab_angles_initial, intersections_initial
+    return lab_angles_initial, intersections_initial, start_point_initial, end_point_initial
 
 # Function to plot RANSAC threshold lines
 def plot_threshold_lines(start_point, direction_vector, threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2):
@@ -672,6 +676,11 @@ def kinematics_gmm(data, responsibilities, event_info):
     intersections_initial = {}
     lab_angles_initial = {}
     lab_angles_minimize = {}
+    start_point_initial = {}
+    end_point_initial = {}
+    closest_threshold_dict = {}
+    closest_angle_dict = {}
+
     data = add_filters(data, model= int(6))
     gmm_labels = np.unique(data[:, 6])
     for label in gmm_labels:
@@ -697,6 +706,8 @@ def kinematics_gmm(data, responsibilities, event_info):
                 intersection_point = closest_point_on_line1(start_point, track_vector, np.array([0,128,128]), beam_vector)
                 lab_angles_initial[label] = round(lab_angle, 2)
                 intersections_initial[label] = intersection_point
+                start_point_initial[label] = start_point
+                end_point_initial[label] = end_point
                 if plots:
                     plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection_point, closest_points, ax11, ax12, ax13)
                 # print('Track inside Volume', start_point, end_point, intersection_point, np.unique(cluster_data[:, 10]), np.unique(cluster_data[:, 11]), np.unique(cluster_data[:, 12]))
@@ -737,6 +748,8 @@ def kinematics_gmm(data, responsibilities, event_info):
                     lab_angles_resp[res_threshold] = round(lab_angle_p, 2)
                 lab_angles_minimize[label] = lab_angles_resp
                 closest_threshold, closest_angle = min(lab_angles_resp.items(), key=lambda item: abs(item[1] - event_info.Elab))
+                closest_threshold_dict[label] = closest_threshold
+                closest_angle_dict[label] = closest_angle
                 responsibility_threshold = closest_threshold
                 responsibility_mask = responsibilities[:, int(label)] > responsibility_threshold
                 final_mask = inside_beam_zone_not_label & responsibility_mask
@@ -750,7 +763,7 @@ def kinematics_gmm(data, responsibilities, event_info):
                     ax11.scatter(data[final_mask, 0]+1, data[final_mask, 1]+1, marker = 'o')
                     ax12.scatter(data[final_mask, 1]+1, data[final_mask, 2]+1, marker = 'o')
                     ax13.scatter(data[final_mask, 0]+1, data[final_mask, 2]+1, marker = 'o')
-    return lab_angles_initial, intersections_initial, lab_angles_minimize
+    return lab_angles_initial, intersections_initial, lab_angles_minimize, start_point_initial, end_point_initial, closest_threshold_dict, closest_angle_dict
 
 # Function to do final plots
 def final_plots(axes_final, bin_range, bin_width, plot_list, notation):
@@ -1055,7 +1068,8 @@ for energy in excitation_energies:
         print('Reading', entry ,'entries from file', filename)
 
         if save_to_root:
-            root_file = root.TFile("recon_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm.root", "UPDATE")
+            path_output = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/minimize/"
+            root_file = root.TFile(path_output+"recon_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".root", "UPDATE")
             result = create_tree_and_branches("events")
 
         EventInfo = namedtuple('Events', ['event_id', 'verX', 'verY', 'verZ', 'dirX', 'dirY', 'dirZ', 'Eenergy', 'Elab', 'ransac', 'gmm'])
@@ -1137,13 +1151,22 @@ for energy in excitation_energies:
                     if plots:
                         colorbars_gmm = plot_gmm(data_array, event_info)
 
-                    angles_ransac, intersections_ransac = kinematics_ransac(data_array, fitted_models, False)
+                    angles_ransac, intersections_ransac, start_point_ransac, end_point_ransac = kinematics_ransac(data_array, fitted_models, False)
                     print('RANSAC angles', angles_ransac)
                     ransac['angles'] = angles_ransac
+                    ransac['intersections'] = intersections_ransac
+                    ransac['start_point'] = start_point_ransac
+                    ransac['end_point'] = end_point_ransac
 
-                    angles_gmm, intersections_gmm, angles_minimize_gmm = kinematics_gmm(data_array, responsibilities, event_info)
+                    angles_gmm, intersections_gmm, angles_minimize_gmm, start_point_gmm, end_point_gmm, closest_resp, closest_angle = kinematics_gmm(data_array, responsibilities, event_info)
                     print('GMM angles', angles_gmm)
                     gmm['angles'] = angles_gmm
+                    gmm['intersections'] = intersections_gmm
+                    gmm['start_point'] = start_point_gmm
+                    gmm['end_point'] = end_point_gmm
+                    gmm['resp'] = angles_minimize_gmm
+                    gmm['min_res'] = closest_resp
+                    gmm['min_angle'] = closest_angle
 
                     # print('GMM intersections', intersections_gmm)
                     # print('minimize', angles_minimize_gmm)
@@ -1179,9 +1202,9 @@ for energy in excitation_energies:
                     event_info = event_info._replace(gmm=gmm)
 
                     EventInfoList.append(event_info)
-
+                    # print(event_info)
                     if save_to_root:
-                        print(event_info)
+                        # print(event_info)
                         fill_event_data_to_tree(result, event_info)
 
                     #Final Visualization Closures
