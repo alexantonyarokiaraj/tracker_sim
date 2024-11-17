@@ -5,5 +5,5 @@
 5. Add Filters for start point, end point, intersection - Solved
 6. Handle Return from Minimization - in GMM
 7. Save returns from GMM to ROOT.
-8. Add Filters for RANSAC.
+8. Add Filters for RANSAC - Solved
 9. Save returns from RANSAC to ROOT.

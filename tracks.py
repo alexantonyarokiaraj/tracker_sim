@@ -50,8 +50,8 @@ plots = False
 sim = True
 debug=False
 final_plots_flag = False
-event_start = 1
-event_end = 20
+event_start = 640
+event_end = 680
 save_final_data=False
 with_missing_pads = False
 batch_mode = True
@@ -453,7 +453,7 @@ def plot_ransac(data_array, event_info):
     return [colorbar4, colorbar5, colorbar6]
 
 # Function to plot the threshold distance in RANSAC
-def plot_threshold_lines(start_point, direction_vector):
+def return_threshold_lines(start_point, direction_vector):
     # Normalize the direction vector
     direction_vector_normalized = direction_vector / np.linalg.norm(direction_vector)
 
@@ -484,105 +484,115 @@ def plot_threshold_lines(start_point, direction_vector):
     return threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2
 
 # Function to plot the kinematics of RANSAC Clusters
-def kinematics_ransac(data_array, fitted_models, useLineModelND):
+def kinematics_ransac(data, fitted_models, useLineModelND):
     # Define the beam line endpoints
-
-    angles = {}
-    low_energy_track_count = 0
-
-    beam_line_start = np.array([0, 128, 128])
-    beam_line_end = np.array([256, 128, 128])
-    beam_line_direction = beam_line_end - beam_line_start
-    beam_line_direction = beam_line_direction / np.linalg.norm(beam_line_direction)  # Normalize
-
-    ransac_labels = data_array[:, 5]
-
-    # Iterate through each unique label
-    unique_labels = np.unique(ransac_labels[ransac_labels != 20])  # Exclude unassigned labels (20)
-    for label in unique_labels:
+    data = data[data[:, 5] != 20]
+    data = add_filters(data, model=int(5))
+    lab_angles_initial = {}
+    intersections_initial = {}
+    ransac_labels = np.unique(data[:, 5])
+    for label in ransac_labels:
         # Get the points corresponding to the current label
-        cluster_points = data_array[ransac_labels == label]
+        cluster_data = data[data[:, 5] == label]
 
         # Check if the cluster size is greater than 10
-        if cluster_points.shape[0] <= 10:
+        if cluster_data.shape[0] <= 10:
             continue  # Skip this cluster if it has 10 or fewer points
 
         # Calculate the mean y of the cluster
-        mean_y = np.mean(cluster_points[:, 1])
-
+        mean_y = np.mean(cluster_data[:, 1])
         # Process clusters either above or below the beam line
-        if (mean_y >= beam_zone_high or mean_y < beam_zone_low) and cluster_points.shape[0] >= 10:
-            # Print model parameters for debugging
-            # print("Fitted model parameters for label", label, ":", fitted_models[label].params)
-            low_energy_track_count += 1
-            # Get the direction vector and start point from the fitted model
-            model_params = fitted_models[label].params
-            start_point = np.array(model_params[0])
+        if (mean_y >= VolumeBoundaries.BEAM_ZONE_MAX.value or mean_y < VolumeBoundaries.BEAM_ZONE_MIN.value) and cluster_data.shape[0] >= 10:
+            mask = (
+                (cluster_data[:, 7] == 1) &  # Column 8: (beam_track_flag_col) = 1
+                (cluster_data[:, 8] == 1) &  # Column 9: (volume_check_flag_col) = 1
+                (cluster_data[:, 9] == 1) &  # Column 10: (intersection_flag_col) = 1
+                ((cluster_data[:, 10] == 1) | (cluster_data[:, 10] == -1)) &  # Column 11: (side_flag_col) = 1 or -1
+                ((cluster_data[:, 11] == 1) | (cluster_data[:, 11] == -1)) & # Column 12: (proximity_flag_col) = 1 or -1
+                (cluster_data[:, 12] == 1) # Column 12: Track End point above the beam zone
+            )
+            if cluster_data[mask, :3].size > 0:
+                # Fill the lab angles and intersections based on first PCA fit.
+                end_point, start_point, beam_vector, dirVecTrackNorm, track_mean, closest_points = get_directions(cluster_data[mask, :3])
+                track_vector = end_point - start_point
+                lab_angle = angle_between(track_vector, beam_vector)
+                intersection_point = closest_point_on_line1(start_point, track_vector, np.array([0,128,128]), beam_vector)
+                lab_angles_initial[label] = round(lab_angle, 2)
+                intersections_initial[label] = intersection_point
+                if plots:
+                    plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection_point, closest_points, ax8, ax9, ax10)
+                    if not useLineModelND:
+                        threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2 = return_threshold_lines(track_mean, dirVecTrackNorm)
+                        plot_threshold_lines(track_mean, dirVecTrackNorm, threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2)
+                    else:
+                        model_params = fitted_models[label].params
+                        threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2 = return_threshold_lines(np.array(model_params[0]), np.array(model_params[1]))
+                        plot_threshold_lines(np.array(model_params[0]), np.array(model_params[1]), threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2)
+                # print('Track inside Volume', start_point, end_point, intersection_point, np.unique(cluster_data[:, 10]), np.unique(cluster_data[:, 11]), np.unique(cluster_data[:, 12]))
+            else:
+                end_point, start_point, beam_vector, dirVecTrackNorm, track_mean, closest_points = get_directions(cluster_data[:, :3])
+                track_vector = end_point - start_point
+                intersection_point = closest_point_on_line1(start_point, track_vector, np.array([0,128,128]), beam_vector)
+                # print('Track not inside Volume', start_point, end_point, intersection_point, np.unique(cluster_data[:, 10]), np.unique(cluster_data[:, 11]), np.unique(cluster_data[:, 12]))
+                # if 0 in np.unique(cluster_data[:, 12]):
+                #     print('Track End point inside')
+                if plots:
+                    plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection_point, closest_points, ax8, ax9, ax10)
+                    if not useLineModelND:
+                        threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2 = return_threshold_lines(track_mean, dirVecTrackNorm)
+                        plot_threshold_lines(track_mean, dirVecTrackNorm, threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2)
+                    else:
+                        model_params = fitted_models[label].params
+                        threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2 = return_threshold_lines(np.array(model_params[0]), np.array(model_params[1]))
+                        plot_threshold_lines(np.array(model_params[0]), np.array(model_params[1]), threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2)
+    return lab_angles_initial, intersections_initial
 
-            pca = PCA(n_components=1)
-            pca.fit(cluster_points[:, :3])  # Only x, y, z coordinates
+# Function to plot RANSAC threshold lines
+def plot_threshold_lines(start_point, direction_vector, threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2):
 
-            if not useLineModelND:
-                direction_vector = pca.components_[0]
-                threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2 = plot_threshold_lines(start_point, direction_vector)
-            if useLineModelND:
-                direction_vector = np.array(model_params[1])
-                threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2 = plot_threshold_lines(start_point, direction_vector)
+    line_start = start_point - 50 * direction_vector
+    line_end = start_point + 50 * direction_vector
 
-            # Normalize the direction vector
-            direction_vector = direction_vector / np.linalg.norm(direction_vector)
-            # Calculate angle with the beam line
-            angle = angle_between(direction_vector, beam_line_direction)
+    # Threshold line projections for the first perpendicular vector
+    xy_threshold_above1 = threshold_line_above1[:, [0, 1]]
+    yz_threshold_above1 = threshold_line_above1[:, [1, 2]]
+    xz_threshold_above1 = threshold_line_above1[:, [0, 2]]
 
-            # Store results
-            angles[label] = round(angle, 2)
+    xy_threshold_below1 = threshold_line_below1[:, [0, 1]]
+    yz_threshold_below1 = threshold_line_below1[:, [1, 2]]
+    xz_threshold_below1 = threshold_line_below1[:, [0, 2]]
 
-            # Plot the line for this cluster in the XY projection
-            # Extend the line for better visualization
-            line_start = start_point - 50 * direction_vector
-            line_end = start_point + 50 * direction_vector
-            if plots:
-                # Threshold line projections
-                xy_threshold_above1 = threshold_line_above1[:, [0, 1]]
-                yz_threshold_above1 = threshold_line_above1[:, [1, 2]]
-                xz_threshold_above1 = threshold_line_above1[:, [0, 2]]
+    # Threshold line projections for the second perpendicular vector
+    xy_threshold_above2 = threshold_line_above2[:, [0, 1]]
+    yz_threshold_above2 = threshold_line_above2[:, [1, 2]]
+    xz_threshold_above2 = threshold_line_above2[:, [0, 2]]
 
-                xy_threshold_below1 = threshold_line_below1[:, [0, 1]]
-                yz_threshold_below1 = threshold_line_below1[:, [1, 2]]
-                xz_threshold_below1 = threshold_line_below1[:, [0, 2]]
+    xy_threshold_below2 = threshold_line_below2[:, [0, 1]]
+    yz_threshold_below2 = threshold_line_below2[:, [1, 2]]
+    xz_threshold_below2 = threshold_line_below2[:, [0, 2]]
 
-                # Threshold line projections for the second perpendicular vector
-                xy_threshold_above2 = threshold_line_above2[:, [0, 1]]
-                yz_threshold_above2 = threshold_line_above2[:, [1, 2]]
-                xz_threshold_above2 = threshold_line_above2[:, [0, 2]]
-
-                xy_threshold_below2 = threshold_line_below2[:, [0, 1]]
-                yz_threshold_below2 = threshold_line_below2[:, [1, 2]]
-                xz_threshold_below2 = threshold_line_below2[:, [0, 2]]
-
-                ax8.plot([line_start[0], line_end[0]],
-                        [line_start[1], line_end[1]],
-                        label=f"Cluster {label} (Angle: {angle:.2f}°)", linestyle="--")
-                ax8.plot(xy_threshold_above1[:, 0], xy_threshold_above1[:, 1], 'r--', label='Threshold +5mm')
-                ax8.plot(xy_threshold_below1[:, 0], xy_threshold_below1[:, 1], 'g--', label='Threshold -5mm')
-                ax8.plot(xy_threshold_above2[:, 0], xy_threshold_above2[:, 1], 'r--')
-                ax8.plot(xy_threshold_below2[:, 0], xy_threshold_below2[:, 1], 'g--')
-                ax9.plot([line_start[1], line_end[1]],
-                        [line_start[2], line_end[2]],
-                        label=f"Cluster {label} (Angle: {angle:.2f}°)", linestyle="--")
-                ax9.plot(yz_threshold_above1[:, 0], yz_threshold_above1[:, 1], 'r--', label='Threshold +5mm')
-                ax9.plot(yz_threshold_below1[:, 0], yz_threshold_below1[:, 1], 'g--', label='Threshold -5mm')
-                ax9.plot(yz_threshold_above2[:, 0], yz_threshold_above2[:, 1], 'r--')
-                ax9.plot(yz_threshold_below2[:, 0], yz_threshold_below2[:, 1], 'g--')
-                ax10.plot([line_start[0], line_end[0]],
-                        [line_start[2], line_end[2]],
-                        label=f"Cluster {label} (Angle: {angle:.2f}°)", linestyle="--")
-                ax10.plot(xz_threshold_above1[:, 0], xz_threshold_above1[:, 1], 'r--', label='Threshold +5mm')
-                ax10.plot(xz_threshold_below1[:, 0], xz_threshold_below1[:, 1], 'g--', label='Threshold -5mm')
-                ax10.plot(xz_threshold_above2[:, 0], xz_threshold_above2[:, 1], 'r--')
-                ax10.plot(xz_threshold_below2[:, 0], xz_threshold_below2[:, 1], 'g--')
-                plt.draw
-    return angles, low_energy_track_count
+    ax8.plot([line_start[0], line_end[0]],
+            [line_start[1], line_end[1]],
+            linestyle="--")
+    ax8.plot(xy_threshold_above1[:, 0], xy_threshold_above1[:, 1], 'r--', label='Threshold +5mm')
+    ax8.plot(xy_threshold_below1[:, 0], xy_threshold_below1[:, 1], 'g--', label='Threshold -5mm')
+    ax8.plot(xy_threshold_above2[:, 0], xy_threshold_above2[:, 1], 'r--')
+    ax8.plot(xy_threshold_below2[:, 0], xy_threshold_below2[:, 1], 'g--')
+    ax9.plot([line_start[1], line_end[1]],
+            [line_start[2], line_end[2]],
+            linestyle="--")
+    ax9.plot(yz_threshold_above1[:, 0], yz_threshold_above1[:, 1], 'r--', label='Threshold +5mm')
+    ax9.plot(yz_threshold_below1[:, 0], yz_threshold_below1[:, 1], 'g--', label='Threshold -5mm')
+    ax9.plot(yz_threshold_above2[:, 0], yz_threshold_above2[:, 1], 'r--')
+    ax9.plot(yz_threshold_below2[:, 0], yz_threshold_below2[:, 1], 'g--')
+    ax10.plot([line_start[0], line_end[0]],
+            [line_start[2], line_end[2]],
+            linestyle="--")
+    ax10.plot(xz_threshold_above1[:, 0], xz_threshold_above1[:, 1], 'r--', label='Threshold +5mm')
+    ax10.plot(xz_threshold_below1[:, 0], xz_threshold_below1[:, 1], 'g--', label='Threshold -5mm')
+    ax10.plot(xz_threshold_above2[:, 0], xz_threshold_above2[:, 1], 'r--')
+    ax10.plot(xz_threshold_below2[:, 0], xz_threshold_below2[:, 1], 'g--')
+    plt.draw
 
 # Function to do the GMM Fitting
 def fit_gmm_with_bic(data, max_components=10):
@@ -662,7 +672,7 @@ def kinematics_gmm(data, responsibilities, event_info):
     intersections_initial = {}
     lab_angles_initial = {}
     lab_angles_minimize = {}
-    data = add_filters(data)
+    data = add_filters(data, model= int(6))
     gmm_labels = np.unique(data[:, 6])
     for label in gmm_labels:
         cluster_data = data[data[:, 6] == label]
@@ -688,7 +698,7 @@ def kinematics_gmm(data, responsibilities, event_info):
                 lab_angles_initial[label] = round(lab_angle, 2)
                 intersections_initial[label] = intersection_point
                 if plots:
-                    plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection_point, closest_points)
+                    plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection_point, closest_points, ax11, ax12, ax13)
                 # print('Track inside Volume', start_point, end_point, intersection_point, np.unique(cluster_data[:, 10]), np.unique(cluster_data[:, 11]), np.unique(cluster_data[:, 12]))
             else:
                 end_point, start_point, beam_vector, dirVecTrackNorm, track_mean, closest_points = get_directions(cluster_data[:, :3])
@@ -698,7 +708,7 @@ def kinematics_gmm(data, responsibilities, event_info):
                 # if 0 in np.unique(cluster_data[:, 12]):
                 #     print('Track End point inside')
                 if plots:
-                    plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection_point, closest_points)
+                    plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection_point, closest_points, ax11, ax12, ax13)
 
             # Start Minimization
             lab_angles_resp = {}
@@ -733,10 +743,10 @@ def kinematics_gmm(data, responsibilities, event_info):
                 data_for_angle = np.vstack((cluster_data[mask, :3], data[final_mask, :3]))
                 end_point, start_point, beam_vector, dirVecTrackNorm, track_mean, closest_points = get_directions(data_for_angle)
                 track_vector = end_point - start_point
-                print('Lowest Angle, Threshold', round(angle_between(track_vector, beam_vector), 2), closest_threshold)
+                print('Lowest Angle, Threshold', round(angle_between(track_vector, beam_vector), 2), closest_threshold*100)
                 if plots:
                     intersection_point = closest_point_on_line1(start_point, track_vector, np.array([0,128,128]), beam_vector)
-                    plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection_point, closest_points)
+                    plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection_point, closest_points, ax11, ax12, ax13)
                     ax11.scatter(data[final_mask, 0]+1, data[final_mask, 1]+1, marker = 'o')
                     ax12.scatter(data[final_mask, 1]+1, data[final_mask, 2]+1, marker = 'o')
                     ax13.scatter(data[final_mask, 0]+1, data[final_mask, 2]+1, marker = 'o')
@@ -932,7 +942,7 @@ def closest_point_on_line1(p1, d1, q1, d2):
     return closest_point_line1
 
 # Function to add filters to the data array
-def add_filters(data):
+def add_filters(data, model):
     # - data (np.ndarray): Input data array with columns [x, y, z, q, true labels, ransac labels, gmm labels].
 
     # Initialize additional columns
@@ -944,14 +954,14 @@ def add_filters(data):
     end_point_flag_col = np.zeros((data.shape[0], 1))     # Column 13
 
     # Unique GMM labels identify tracks
-    gmm_labels = np.unique(data[:, 6])  # Assuming GMM labels are in the 7th column
+    gmm_labels = np.unique(data[:, model])  # Assuming GMM labels are in the 7th column
 
     side_tracks = {'above': [], 'below': []}
 
     for label in gmm_labels:
         # Select track data and indices
-        cluster_data = data[data[:, 6] == label]
-        track_indices = np.where(data[:, 6] == label)[0]
+        cluster_data = data[data[:, model] == label]
+        track_indices = np.where(data[:, model] == label)[0]
 
         # Calculate mean_y for determining beam or scattered track (Column 8)
         mean_y = np.mean(cluster_data[:, 1])
@@ -975,7 +985,7 @@ def add_filters(data):
             intersection_point = closest_point_on_line1(start_point, track_vector, np.array([0, 128, 128]), beam_vector)
             intersection_flag_col[track_indices] = 1 if within_volume(intersection_point) else 0
 
-            is_not_within_beam_zone = end_point[1] > VolumeBoundaries.BEAM_ZONE_MAX.value + 4 or end_point[1] < VolumeBoundaries.BEAM_ZONE_MIN.value - 4
+            is_not_within_beam_zone = end_point[1] > VolumeBoundaries.BEAM_ZONE_MAX.value or end_point[1] < VolumeBoundaries.BEAM_ZONE_MIN.value
             if is_not_within_beam_zone:
                 end_point_flag_col[track_indices] =1
 
@@ -1005,7 +1015,7 @@ def add_filters(data):
     return data_with_flags
 
 # Function to add plot lines
-def plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection_point, closest_points):
+def plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection_point, closest_points, ax11, ax12, ax13):
     line_length = 100  # Adjust line length as needed
     line_start = track_mean - line_length * dirVecTrackNorm
     line_end = track_mean + line_length * dirVecTrackNorm
@@ -1118,22 +1128,25 @@ for energy in excitation_energies:
                     if plots:
                         colorbars_ransac = plot_ransac(data_array, event_info)
 
-                    angles_ransac, low_energy_track_count_ransac = kinematics_ransac(data_array, fitted_models, True)
-                    print('RANSAC Angles', angles_ransac)
-                    ransac['angles'] = angles_ransac
-
-
                     #Get Prediced Labels from GMM
                     # data_array = [0-x,1-y,2-z,3-q, 4-true labels, 5-ransac labels, 6-gmm labels]
                     gmm_labels, n_comp, responsibilities = fit_gmm_with_bic(data_array, max_components=10)
                     data_array = np.column_stack((data_array, gmm_labels))
+                    gmm['components'] = len(np.unique(gmm_labels))
 
                     if plots:
                         colorbars_gmm = plot_gmm(data_array, event_info)
+
+                    angles_ransac, intersections_ransac = kinematics_ransac(data_array, fitted_models, False)
+                    print('RANSAC angles', angles_ransac)
+                    ransac['angles'] = angles_ransac
+
                     angles_gmm, intersections_gmm, angles_minimize_gmm = kinematics_gmm(data_array, responsibilities, event_info)
-                    gmm['components'] = len(np.unique(gmm_labels))
-                    gmm['angles'] = angles_gmm
                     print('GMM angles', angles_gmm)
+                    gmm['angles'] = angles_gmm
+
+                    # print('GMM intersections', intersections_gmm)
+                    # print('minimize', angles_minimize_gmm)
 
                     # np.save('low_energy_track.npy', data_array)
                     # # Convert named tuple to a dictionary and save as JSON
@@ -1191,8 +1204,8 @@ for energy in excitation_energies:
                         continue
                     if entries.data.event > event_end:
                         break
-            except:
-                print("Exception Encountered")
+            except Exception as e:
+                print("Exception Encountered", e)
                 exception_events.append(entries.data.event)
                 continue
         print('Exited the file', exception_events)
