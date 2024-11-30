@@ -22,6 +22,7 @@ def create_tree_and_branches(tree_name):
     ransac_track_comp = ROOT.std.vector("int")()
     ransac_ari = ROOT.std.vector("float")()
     ransac_angles = ROOT.std.vector("float")()
+    ransac_phi_angles = ROOT.std.vector("float")()
     ransac_inter = ROOT.std.vector("float")()
     ransac_start = ROOT.std.vector("float")()
     ransac_end = ROOT.std.vector("float")()
@@ -30,6 +31,7 @@ def create_tree_and_branches(tree_name):
     gmm_track_comp = ROOT.std.vector("int")()
     gmm_ari = ROOT.std.vector("float")()
     gmm_angles = ROOT.std.vector("float")()
+    gmm_phi_angles = ROOT.std.vector("float")()
     gmm_inter = ROOT.std.vector("float")()
     gmm_start = ROOT.std.vector("float")()
     gmm_end = ROOT.std.vector("float")()
@@ -56,6 +58,7 @@ def create_tree_and_branches(tree_name):
     tree.Branch("ransac_track_comp", ransac_track_comp)
     tree.Branch("ransac_ari", ransac_ari)
     tree.Branch("ransac_angles", ransac_angles)
+    tree.Branch("ransac_phi_angles", ransac_phi_angles)
     tree.Branch("ransac_inter", ransac_inter)
     tree.Branch("ransac_start", ransac_start)
     tree.Branch("ransac_end", ransac_end)
@@ -64,6 +67,7 @@ def create_tree_and_branches(tree_name):
     tree.Branch("gmm_track_comp", gmm_track_comp)
     tree.Branch("gmm_ari", gmm_ari)
     tree.Branch("gmm_angles", gmm_angles)
+    tree.Branch("gmm_phi_angles", gmm_phi_angles)
     tree.Branch("gmm_inter", gmm_inter)
     tree.Branch("gmm_start", gmm_start)
     tree.Branch("gmm_end", gmm_end)
@@ -91,6 +95,7 @@ def create_tree_and_branches(tree_name):
         "ransac_track_comp": ransac_track_comp,
         "ransac_ari": ransac_ari,
         "ransac_angles": ransac_angles,
+        "ransac_phi_angles": ransac_phi_angles,
         "ransac_inter": ransac_inter,
         "ransac_start": ransac_start,
         "ransac_end": ransac_end,
@@ -99,6 +104,7 @@ def create_tree_and_branches(tree_name):
         "gmm_track_comp": gmm_track_comp,
         "gmm_ari": gmm_ari,
         "gmm_angles": gmm_angles,
+        "gmm_phi_angles": gmm_phi_angles,
         "gmm_inter": gmm_inter,
         "gmm_start": gmm_start,
         "gmm_end": gmm_end,
@@ -129,6 +135,7 @@ def fill_event_data_to_tree(result, event_data):
     ransac_track_comp = result["ransac_track_comp"]
     ransac_ari = result["ransac_ari"]
     ransac_angles = result["ransac_angles"]
+    ransac_phi_angles = result["ransac_phi_angles"]
     ransac_inter = result["ransac_inter"]
     ransac_start = result["ransac_start"]
     ransac_end = result["ransac_end"]
@@ -137,6 +144,7 @@ def fill_event_data_to_tree(result, event_data):
     gmm_track_comp = result["gmm_track_comp"]
     gmm_ari = result["gmm_ari"]
     gmm_angles = result["gmm_angles"]
+    gmm_phi_angles = result["gmm_phi_angles"]
     gmm_inter = result["gmm_inter"]
     gmm_start = result["gmm_start"]
     gmm_end = result["gmm_end"]
@@ -163,6 +171,7 @@ def fill_event_data_to_tree(result, event_data):
     ransac_track_comp.clear()
     ransac_ari.clear()
     ransac_angles.clear()
+    ransac_phi_angles.clear()
     ransac_inter.clear()
     ransac_start.clear()
     ransac_end.clear()
@@ -171,6 +180,7 @@ def fill_event_data_to_tree(result, event_data):
     gmm_track_comp.clear()
     gmm_ari.clear()
     gmm_angles.clear()
+    gmm_phi_angles.clear()
     gmm_inter.clear()
     gmm_start.clear()
     gmm_end.clear()
@@ -207,6 +217,9 @@ def fill_event_data_to_tree(result, event_data):
     # Iterate and Fill
     for angle in event_data.ransac["angles"].values():
         ransac_angles.push_back(angle)
+
+    for phi_angle in event_data.ransac["phi_angles"].values():
+        ransac_phi_angles.push_back(phi_angle)
 
     for inter in event_data.ransac["intersections"].values():
         for element in inter:
@@ -245,6 +258,9 @@ def fill_event_data_to_tree(result, event_data):
 
     for angle in event_data.gmm["angles"].values():
         gmm_angles.push_back(angle)
+
+    for phi_angle in event_data.gmm["phi_angles"].values():
+        gmm_phi_angles.push_back(phi_angle)
 
     for metric in event_data.gmm["beam_beam_metric"].values():
         gmm_bb_metric.push_back(metric)

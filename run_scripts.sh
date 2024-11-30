@@ -11,5 +11,5 @@ for ((i=0; i<num_cores; i++)); do
     start=$((i * chunk_size))
     end=$((start + chunk_size - 1))
 
-    echo "python3 tracks.py 0@3@$start@$end"
+    echo "python3 tracks.py 5@3@$start@$end"
 done | parallel -u

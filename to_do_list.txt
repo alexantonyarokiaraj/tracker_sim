@@ -3,7 +3,20 @@
 3. Intersection of the Scattered Track with the beamline - Solved
 4. Minimization for Lab Angle based on the posterior probabilities - Solved
 5. Add Filters for start point, end point, intersection - Solved
-6. Handle Return from Minimization - in GMM
-7. Save returns from GMM to ROOT.
+6. Handle Return from Minimization - in GMM - Solved
+7. Save returns from GMM to ROOT - Solved
 8. Add Filters for RANSAC - Solved
-9. Save returns from RANSAC to ROOT.
+9. Save returns from RANSAC to ROOT - Solved
+10. Add Phi Angle Calculations - Solved
+11. Run without missing pads for phi angle Calculations + responsibilities
+12. Get the metrics for the missing pads.
+13. Distance between start points and angle between start points.
+14. Write them to the ROOT file
+15. Get the Merging algorithm working.
+16. Create the simulated events.
+17. Recreate the merge for the experimental data in section of regularization
+18. Recreate the ARI indices
+19. Lab Angle comparison
+20. Merge Metric Graphs
+21. Mean Minimization
+22. Range Minimization

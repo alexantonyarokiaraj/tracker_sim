@@ -237,13 +237,65 @@ button_next.on_clicked(next_button_callback)
 #######################################
 # Supporting Functions
 #######################################
-# Function to calculate the angle between two vectors
 def angle_between(v1, v2):
-    # Ensure the direction of v1 aligns with v2 by flipping if necessary
-    # if np.dot(v1, v2) < 0:
-    #     v1 = -v1  # Flip v1 to ensure it points in the same general direction as v2
+    """
+    Calculate the angle (in degrees) between two vectors.
+
+    Parameters:
+        v1 (array-like): The first vector.
+        v2 (array-like): The second vector.
+
+    Returns:
+        float: The angle between the two vectors in degrees.
+    """
+    # Compute cosine of the angle
     cos_theta = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
-    return np.degrees(np.arccos(np.clip(cos_theta, -1.0, 1.0)))
+    # Ensure cosine is within valid range
+    cos_theta = np.clip(cos_theta, -1.0, 1.0)
+    # Return angle in degrees
+    return np.degrees(np.arccos(cos_theta))
+
+
+def calculate_phi_angle(v, beam_v):
+    """
+    Calculate the angle (in degrees) of a single vector in the YZ plane
+    relative to the positive Y-axis.
+
+    Parameters:
+        v (array-like): The vector (3D).
+
+    Returns:
+        float: The signed angle of the vector in the YZ plane in degrees.
+               Returns 400 if the vector has no magnitude in the YZ plane.
+    """
+    # Project the vector onto the YZ plane (ignore x-component)
+    v_yz = np.array([v[1], v[2]])
+
+    # Compute the norm of the projected vector
+    norm_v = np.linalg.norm(v_yz)
+
+    # Handle zero-magnitude vector
+    if norm_v == 0:
+        return 400  # Return 400 for zero magnitude in YZ plane
+
+    # Reference direction is along the positive Y-axis
+    ref_vector = np.array([1, 0])  # Positive Y-axis in YZ plane
+
+    # Compute the dot product and angle
+    dot_product = np.dot(v_yz, ref_vector)
+    cos_theta = dot_product / norm_v
+    cos_theta = np.clip(cos_theta, -1.0, 1.0)  # Ensure valid range for arccos
+    angle = np.degrees(np.arccos(cos_theta))
+
+    # Compute the cross product to determine the sign of the angle
+    cross_product_z = v_yz[0] * ref_vector[1] - v_yz[1] * ref_vector[0]
+
+    # Determine the sign of the angle
+    if cross_product_z < 0:
+        angle = -angle  # Negative direction
+
+    return angle
+
 
 #Function to find the peak in Z spectrum
 def get_gpeaks(h, lrange, sigma, opt, thres, niter):
@@ -490,6 +542,7 @@ def kinematics_ransac(data, fitted_models, useLineModelND):
     data = add_filters(data, model=int(5))
     lab_angles_initial = {}
     intersections_initial = {}
+    phi_angles_initial = {}
     start_point_initial = {}
     end_point_initial = {}
     ransac_labels = np.unique(data[:, 5])
@@ -518,11 +571,13 @@ def kinematics_ransac(data, fitted_models, useLineModelND):
                 end_point, start_point, beam_vector, dirVecTrackNorm, track_mean, closest_points = get_directions(cluster_data[mask, :3])
                 track_vector = end_point - start_point
                 lab_angle = angle_between(track_vector, beam_vector)
+                phi_angle = calculate_phi_angle(track_vector, beam_vector)
                 intersection_point = closest_point_on_line1(start_point, track_vector, np.array([0,128,128]), beam_vector)
                 lab_angles_initial[label] = round(lab_angle, 2)
                 intersections_initial[label] = intersection_point
                 start_point_initial[label] = start_point
                 end_point_initial[label] = end_point
+                phi_angles_initial[label] = phi_angle
                 if plots:
                     plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection_point, closest_points, ax8, ax9, ax10)
                     if not useLineModelND:
@@ -549,7 +604,7 @@ def kinematics_ransac(data, fitted_models, useLineModelND):
                         model_params = fitted_models[label].params
                         threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2 = return_threshold_lines(np.array(model_params[0]), np.array(model_params[1]))
                         plot_threshold_lines(np.array(model_params[0]), np.array(model_params[1]), threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2)
-    return lab_angles_initial, intersections_initial, start_point_initial, end_point_initial
+    return lab_angles_initial, intersections_initial, start_point_initial, end_point_initial, phi_angles_initial
 
 # Function to plot RANSAC threshold lines
 def plot_threshold_lines(start_point, direction_vector, threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2):
@@ -675,6 +730,7 @@ def kinematics_gmm(data, responsibilities, event_info):
 
     intersections_initial = {}
     lab_angles_initial = {}
+    phi_angles_initial = {}
     lab_angles_minimize = {}
     start_point_initial = {}
     end_point_initial = {}
@@ -703,11 +759,13 @@ def kinematics_gmm(data, responsibilities, event_info):
                 end_point, start_point, beam_vector, dirVecTrackNorm, track_mean, closest_points = get_directions(cluster_data[mask, :3])
                 track_vector = end_point - start_point
                 lab_angle = angle_between(track_vector, beam_vector)
+                phi_angle = calculate_phi_angle(track_vector, beam_vector)
                 intersection_point = closest_point_on_line1(start_point, track_vector, np.array([0,128,128]), beam_vector)
                 lab_angles_initial[label] = round(lab_angle, 2)
                 intersections_initial[label] = intersection_point
                 start_point_initial[label] = start_point
                 end_point_initial[label] = end_point
+                phi_angles_initial[label] = phi_angle
                 if plots:
                     plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection_point, closest_points, ax11, ax12, ax13)
                 # print('Track inside Volume', start_point, end_point, intersection_point, np.unique(cluster_data[:, 10]), np.unique(cluster_data[:, 11]), np.unique(cluster_data[:, 12]))
@@ -736,6 +794,7 @@ def kinematics_gmm(data, responsibilities, event_info):
             not_belonging_to_label = ~labels_for_current_label
             inside_beam_zone_not_label = beam_zone_mask & not_belonging_to_label
             res = np.concatenate([range_1, range_2, range_3, range_4, range_5, range_6, range_7])
+            # res = [0.1]
             if cluster_data[mask, :3].size > 0:
                 for res_threshold in res:
                     responsibility_threshold = res_threshold
@@ -763,7 +822,7 @@ def kinematics_gmm(data, responsibilities, event_info):
                     ax11.scatter(data[final_mask, 0]+1, data[final_mask, 1]+1, marker = 'o')
                     ax12.scatter(data[final_mask, 1]+1, data[final_mask, 2]+1, marker = 'o')
                     ax13.scatter(data[final_mask, 0]+1, data[final_mask, 2]+1, marker = 'o')
-    return lab_angles_initial, intersections_initial, lab_angles_minimize, start_point_initial, end_point_initial, closest_threshold_dict, closest_angle_dict
+    return lab_angles_initial, intersections_initial, lab_angles_minimize, start_point_initial, end_point_initial, closest_threshold_dict, closest_angle_dict, phi_angles_initial
 
 # Function to do final plots
 def final_plots(axes_final, bin_range, bin_width, plot_list, notation):
@@ -1068,8 +1127,9 @@ for energy in excitation_energies:
         print('Reading', entry ,'entries from file', filename)
 
         if save_to_root:
-            path_output = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/minimize/"
+            path_output = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/responsibilities/"
             root_file = root.TFile(path_output+"recon_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".root", "UPDATE")
+            print(root_file)
             result = create_tree_and_branches("events")
 
         EventInfo = namedtuple('Events', ['event_id', 'verX', 'verY', 'verZ', 'dirX', 'dirY', 'dirZ', 'Eenergy', 'Elab', 'ransac', 'gmm'])
@@ -1151,14 +1211,15 @@ for energy in excitation_energies:
                     if plots:
                         colorbars_gmm = plot_gmm(data_array, event_info)
 
-                    angles_ransac, intersections_ransac, start_point_ransac, end_point_ransac = kinematics_ransac(data_array, fitted_models, False)
+                    angles_ransac, intersections_ransac, start_point_ransac, end_point_ransac, phi_angle_ransac = kinematics_ransac(data_array, fitted_models, False)
                     print('RANSAC angles', angles_ransac)
                     ransac['angles'] = angles_ransac
                     ransac['intersections'] = intersections_ransac
                     ransac['start_point'] = start_point_ransac
                     ransac['end_point'] = end_point_ransac
+                    ransac['phi_angles'] = phi_angle_ransac
 
-                    angles_gmm, intersections_gmm, angles_minimize_gmm, start_point_gmm, end_point_gmm, closest_resp, closest_angle = kinematics_gmm(data_array, responsibilities, event_info)
+                    angles_gmm, intersections_gmm, angles_minimize_gmm, start_point_gmm, end_point_gmm, closest_resp, closest_angle, phi_angle_gmm = kinematics_gmm(data_array, responsibilities, event_info)
                     print('GMM angles', angles_gmm)
                     gmm['angles'] = angles_gmm
                     gmm['intersections'] = intersections_gmm
@@ -1167,6 +1228,7 @@ for energy in excitation_energies:
                     gmm['resp'] = angles_minimize_gmm
                     gmm['min_res'] = closest_resp
                     gmm['min_angle'] = closest_angle
+                    gmm['phi_angles'] = phi_angle_gmm
 
                     # print('GMM intersections', intersections_gmm)
                     # print('minimize', angles_minimize_gmm)
