@@ -31,6 +31,9 @@ from sklearn.metrics import adjusted_rand_score
 from write import create_tree_and_branches, fill_event_data_to_tree
 import pickle
 from enum import Enum
+from sklearn.neighbors import NearestNeighbors
+from sklearn.cluster import DBSCAN
+from kneed import KneeLocator
 
 np.random.seed(42)
 
@@ -53,9 +56,9 @@ final_plots_flag = False
 event_start = int(split_strings[2])
 event_end = int(split_strings[3])
 save_final_data=False
-with_missing_pads = False
+with_missing_pads = True
 batch_mode = True
-save_to_root = True
+save_to_root = False
 save_python_figures = False
 
 np.set_printoptions(threshold=np.inf)
@@ -111,6 +114,15 @@ class VolumeBoundaries(Enum):
     BEAM_ZONE_MIN = 122
     BEAM_ZONE_MAX = 132
     BEAM_CENTER = 128
+
+class SCAN(Enum):
+    N_PROC = 1
+    NN_NEIGHBOR = 2
+    NN_RADIUS = 20.0
+    DB_MIN_SAMPLES = 4
+    SENSITIVITY = 3
+    EPS_THRESHOLD = 5
+    EPS_MODE = 10
 
 #######################################
 # Graphics
@@ -1113,6 +1125,139 @@ def plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection
     ax12.scatter(closest_points[:, 1], closest_points[:, 2], color='red', label='Closest Points on PCA Line', s=20)
     ax13.scatter(closest_points[:, 0], closest_points[:, 2], color='red', label='Closest Points on PCA Line', s=20)
 
+# Function to find DBSCAN Clusters
+def dbcluster(data_array, N_PROC, nn_neighbor, nn_radius, db_min_samples, sensitivity_, eps_threshold_, eps_mode_):
+    """
+    Perform DBSCAN clustering on a given data array with adaptive epsilon calculation.
+
+    Parameters:
+    - data_array: np.ndarray
+        Input data with at least 3 columns (x, y, z).
+    - N_PROC: int
+        Number of processes for parallel computation.
+    - nn_neighbor: int
+        Number of nearest neighbors for the NearestNeighbors algorithm.
+    - nn_radius: float
+        Radius for the NearestNeighbors algorithm.
+    - db_min_samples: int
+        Minimum samples for a cluster in DBSCAN.
+    - sensitivity_: float
+        Sensitivity for the KneeLocator.
+    - eps_threshold_: float
+        Threshold below which epsilon defaults to eps_mode_.
+    - eps_mode_: float
+        Default epsilon value if calculated epsilon is below threshold.
+
+    Returns:
+    - labels_: np.ndarray
+        Cluster labels from DBSCAN or [-1, -1] in case of failure.
+    - valid_cluster: bool
+        True if clustering is successful, False otherwise.
+    - epsilon_: float
+        The epsilon value used for DBSCAN.
+    """
+    valid_cluster = True
+    epsilon_ = 0  # Default epsilon value
+    try:
+        # Extract the first three columns (x, y, z)
+        extractedData = data_array[:, 0:3]
+
+        # Nearest neighbors setup
+        neigh = NearestNeighbors(n_neighbors=nn_neighbor, radius=nn_radius)
+        nbrs = neigh.fit(extractedData)
+        distances, indices = nbrs.kneighbors(extractedData)
+        distances = np.sort(distances, axis=0)
+        dist_ = distances[:, 1]
+
+        # KneeLocator to find the optimal epsilon
+        kneedle = KneeLocator(
+            x=indices[:, 0],
+            y=dist_,
+            S=sensitivity_,
+            curve='convex',
+            direction='increasing',
+            interp_method='interp1d'
+        )
+        if kneedle.knee is None:
+            raise ValueError("KneeLocator failed to identify a knee point.")
+
+        epsilon_ = round(dist_[int(kneedle.knee)], 2)
+        if epsilon_ < eps_threshold_:
+            epsilon_ = eps_mode_
+
+        # DBSCAN clustering
+        model = DBSCAN(eps=epsilon_, min_samples=db_min_samples, n_jobs=N_PROC)
+        labels_ = model.fit_predict(extractedData)
+        return labels_, valid_cluster, epsilon_
+
+    except ValueError as ve:
+        print(f"ValueError: {ve}")
+    except Exception as e:
+        print(f"Error: {e}")
+
+    # Return defaults in case of failure
+    return np.array([-1, -1]), False, epsilon_
+
+# Function to do GMM clustering for every dbscan cluster
+def hierarchical_clustering_with_responsibilities(data_array, max_components=10):
+    """
+    Perform DBSCAN clustering and then apply GMM clustering to each DBSCAN cluster,
+    computing the responsibility array for all data points.
+
+    Parameters:
+    - data_array (np.ndarray): Input data array with at least 3 columns (x, y, z).
+    - max_components (int): Maximum number of GMM components to evaluate for BIC.
+
+    Returns:
+    - final_labels (np.ndarray): Combined labels for the entire dataset after hierarchical clustering.
+    - dbscan_labels (np.ndarray): Labels from the DBSCAN clustering.
+    - final_responsibilities (np.ndarray): Responsibility matrix of shape (n_points, total_gmm_clusters).
+    """
+    # Step 1: Perform DBSCAN clustering
+    dbscan_labels, valid_cluster, epsilon_ = dbcluster(
+        data_array,
+        SCAN.N_PROC.value,
+        SCAN.NN_NEIGHBOR.value,
+        SCAN.NN_RADIUS.value,
+        SCAN.DB_MIN_SAMPLES.value,
+        SCAN.SENSITIVITY.value,
+        SCAN.EPS_THRESHOLD.value,
+        SCAN.EPS_MODE.value
+    )
+
+    if not valid_cluster:
+        print("DBSCAN clustering failed.")
+        return np.array([-1] * len(data_array)), dbscan_labels, None
+
+    unique_clusters = np.unique(dbscan_labels)
+    num_points = len(data_array)
+
+    final_labels = -1 * np.ones(num_points, dtype=int)
+    final_responsibilities = -1 * np.ones((num_points, 0))
+
+    current_label_offset = 0
+
+    for cluster_id in unique_clusters:
+        if cluster_id == -1:
+            continue
+
+        cluster_mask = dbscan_labels == cluster_id
+        cluster_data = data_array[cluster_mask]
+
+        gmm_labels, n_comp, responsibilities = fit_gmm_with_bic(cluster_data, max_components=max_components)
+
+        global_gmm_labels = gmm_labels + current_label_offset
+        final_labels[cluster_mask] = global_gmm_labels
+
+        new_responsibilities = -1 * np.ones((num_points, n_comp))
+        new_responsibilities[cluster_mask, :] = responsibilities
+        final_responsibilities = np.hstack((final_responsibilities, new_responsibilities))
+
+        current_label_offset += n_comp
+
+    return final_labels, current_label_offset, final_responsibilities, dbscan_labels
+
+
 #######################################
 # Main Function
 #######################################
@@ -1127,7 +1272,7 @@ for energy in excitation_energies:
         print('Reading', entry ,'entries from file', filename)
 
         if save_to_root:
-            path_output = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/responsibilities/"
+            path_output = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/"
             root_file = root.TFile(path_output+"recon_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".root", "UPDATE")
             print(root_file)
             result = create_tree_and_branches("events")
@@ -1203,10 +1348,11 @@ for energy in excitation_energies:
                         colorbars_ransac = plot_ransac(data_array, event_info)
 
                     #Get Prediced Labels from GMM
-                    # data_array = [0-x,1-y,2-z,3-q, 4-true labels, 5-ransac labels, 6-gmm labels]
-                    gmm_labels, n_comp, responsibilities = fit_gmm_with_bic(data_array, max_components=10)
+                    # data_array = [0-x,1-y,2-z,3-q, 4-true labels, 5-ransac labels, 6-gmm labels, 7-dbscan labels]
+                    gmm_labels, n_comp, responsibilities, dbscan_labels = hierarchical_clustering_with_responsibilities(data_array, max_components=10)
                     data_array = np.column_stack((data_array, gmm_labels))
-                    gmm['components'] = len(np.unique(gmm_labels))
+                    data_array = np.column_stack((data_array, dbscan_labels))
+                    gmm['components'] = n_comp
 
                     if plots:
                         colorbars_gmm = plot_gmm(data_array, event_info)

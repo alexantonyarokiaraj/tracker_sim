@@ -8,8 +8,8 @@
 8. Add Filters for RANSAC - Solved
 9. Save returns from RANSAC to ROOT - Solved
 10. Add Phi Angle Calculations - Solved
-11. Run without missing pads for phi angle Calculations + responsibilities
-12. Get the metrics for the missing pads.
+11. Run without missing pads for phi angle Calculations + responsibilities - Solved
+12. Get the metrics for the missing pads - Solved
 13. Distance between start points and angle between start points.
 14. Write them to the ROOT file
 15. Get the Merging algorithm working.
@@ -20,3 +20,4 @@
 20. Merge Metric Graphs
 21. Mean Minimization
 22. Range Minimization
+23. Include DBSCAN - Solved
