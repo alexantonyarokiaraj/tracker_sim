@@ -1,0 +1,167 @@
+import numpy as np
+from scipy.stats import chi2
+
+
+class Regularize:
+
+    def __init__(self, data_array, threshold=0.1):
+        """
+        Initialize the Regularize class.
+
+        Parameters:
+        - data_array: 2D NumPy array containing data points (columns: x, y, z, ..., cluster labels).
+        - threshold: float, p-value threshold for merging clusters.
+        """
+        self.data = data_array
+        self.threshold = threshold
+
+    def calculate_g_matrix(self, xyz_data, clusters):
+        """
+        Calculate the G matrix based on Mahalanobis distances between clusters.
+
+        Parameters:
+        - xyz_data: 2D NumPy array with x, y, z data for all points.
+        - clusters: 1D NumPy array with cluster labels for each point.
+
+        Returns:
+        - G: 2D NumPy array (KxK), where K is the number of unique clusters.
+        """
+        unique_clusters = np.unique(clusters)
+        K = len(unique_clusters)
+
+        # Initialize the G matrix
+        G = np.zeros((K, K))
+
+        # Calculate means, covariance matrices, and counts for each cluster
+        epsilon = 1e-3  # Small factor to penalize clusters with insufficient data
+        cluster_stats = {}
+
+        for cluster in unique_clusters:
+            cluster_data = xyz_data[clusters == cluster]
+            count = cluster_data.shape[0]
+
+            if count > 1:  # Only calculate covariance for sufficient data points
+                cluster_mean = np.mean(cluster_data, axis=0)
+                cluster_cov = np.cov(cluster_data.T)
+            else:
+                # Handle insufficient data
+                cluster_mean = np.mean(cluster_data, axis=0) if count > 0 else np.zeros(xyz_data.shape[1])
+                cluster_cov = epsilon * np.eye(xyz_data.shape[1])  # Scale identity matrix
+
+            cluster_stats[cluster] = {
+                'mean': cluster_mean,
+                'cov': cluster_cov,
+                'count': count
+            }
+
+        # Fill the G matrix
+        for i in range(K):
+            for j in range(i + 1, K):  # Only calculate upper triangle
+                cluster_i, cluster_j = unique_clusters[i], unique_clusters[j]
+
+                # Use the cluster with more points as the reference
+                if cluster_stats[cluster_i]['count'] >= cluster_stats[cluster_j]['count']:
+                    ci, cj = cluster_i, cluster_j
+                else:
+                    ci, cj = cluster_j, cluster_i
+
+                try:
+                    cov_inv = np.linalg.inv(cluster_stats[ci]['cov'])  # Inverse covariance matrix
+                    mean_ci = cluster_stats[ci]['mean']
+                    data_cj = xyz_data[clusters == cj]
+
+                    # Calculate Mahalanobis distances for all points in cj relative to ci
+                    diff = data_cj - mean_ci
+                    mahalanobis_square = np.sum(diff @ cov_inv * diff, axis=1)
+                    distances = np.sqrt(np.clip(mahalanobis_square, 0, None))  # Clip negative values to 0
+                    avg_distance = np.mean(distances)
+
+                    # Calculate p-value
+                    if avg_distance <= 0:
+                        p_value = 0
+                    else:
+                        p_value = 1 - chi2.cdf(avg_distance, df=2)
+
+
+                    # Apply threshold
+                    if p_value < self.threshold:
+                        p_value = 0
+
+                    G[i, j] = round(p_value, 4)
+                    G[j, i] = G[i, j]  # Ensure symmetry
+
+                except np.linalg.LinAlgError:
+                    G[i, j] = G[j, i] = 0  # Handle singular covariance matrices gracefully
+                    # print(f"Singular covariance matrix for clusters {ci} and {cj}. Setting G[{i},{j}] to 0.")
+
+        # Keep only the maximum value in each column
+        for j in range(K):
+            non_zero_values = G[:, j][G[:, j] != 0]
+            if non_zero_values.size > 0:
+                max_value = np.max(non_zero_values)
+                G[:, j][G[:, j] != max_value] = 0
+                G[j, :][G[j, :] != max_value] = 0
+
+        np.fill_diagonal(G, 0)  # Ensure diagonal remains zero
+        return G
+
+    def merge_labels(self):
+        """
+        Merge clusters based on the G matrix until no further merging is possible.
+
+        Returns:
+        - clusters: 1D NumPy array with updated cluster labels.
+        """
+        xyz_data = self.data[:, 0:3]
+        clusters = self.data[:, 6].astype(int)
+        unique_clusters = np.unique(clusters)
+
+        iteration = 0
+        while True:
+            iteration += 1
+            # print(f"Iteration {iteration}: Unique clusters = {len(unique_clusters)}")
+
+            # Calculate the G matrix
+            G = self.calculate_g_matrix(xyz_data, clusters)
+            # Find non-zero indices in the G matrix
+            non_zero_indices = np.argwhere(G != 0)
+            if non_zero_indices.size == 0 or iteration > 50:
+                # print("No non-zero elements in G matrix. Stopping merge.")
+                break
+
+            # Create a mapping for merged clusters
+            cluster_mapping = {label: label for label in unique_clusters}
+
+            # Merge clusters based on non-zero elements in G
+            for i, j in non_zero_indices:
+                if i < j:  # Ensure each pair is processed only once
+                    ci, cj = unique_clusters[i], unique_clusters[j]
+                    # print(f"Merging clusters {ci} and {cj}.")
+
+                    # Assign the higher cluster label to all points in cj
+                    merged_label = max(ci, cj)
+                    cluster_mapping[cj] = merged_label
+                    cluster_mapping[ci] = merged_label
+
+                     # Update clusters based on the mapping
+                    for old_label, new_label in cluster_mapping.items():
+                        clusters[clusters == old_label] = new_label
+
+            # Update cluster labels and unique clusters
+            unique_clusters = np.unique(clusters)
+
+        return clusters
+
+
+# Example Usage
+if __name__ == "__main__":
+    # Create synthetic data
+    data = np.random.rand(100, 7)  # 100 points, 7 columns
+    data[:, 6] = np.random.randint(0, 5, size=100)  # Assign random clusters (0-4)
+
+    # Initialize the Regularize class
+    reg = Regularize(data_array=data, threshold=0.05)
+
+    # Perform merging
+    final_clusters = reg.merge_labels()
+    print("Final merged clusters:", np.unique(final_clusters))
