@@ -808,11 +808,12 @@ def kinematics_gmm(data, responsibilities, event_info):
             res = np.concatenate([range_1, range_2, range_3, range_4, range_5, range_6, range_7])
             gmm_indices = np.where(data_array[:, 8] == label)[0]
             gmm_labels_raw = np.unique(data_array[gmm_indices, 6])
+            gmm_labels_raw = np.array(gmm_labels_raw, dtype=int)
             # res = [0.1]
             if cluster_data[mask, :3].size > 0:
                 for res_threshold in res:
                     responsibility_threshold = res_threshold
-                    responsibility_mask = responsibilities[:, int(gmm_labels_raw)] > responsibility_threshold
+                    responsibility_mask = np.any(responsibilities[:, gmm_labels_raw] > responsibility_threshold, axis=1)
                     final_mask = inside_beam_zone_not_label & responsibility_mask
                     data_for_angle = np.vstack((cluster_data[mask, :3], data[final_mask, :3]))
                     end_point, start_point, beam_vector, dirVecTrackNorm, track_mean, closest_points = get_directions(data_for_angle)
