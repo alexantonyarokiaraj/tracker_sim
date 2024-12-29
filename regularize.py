@@ -1,10 +1,10 @@
 import numpy as np
+from libraries import DataArray
 from scipy.stats import chi2
-
 
 class Regularize:
 
-    def __init__(self, data_array, threshold=0.1):
+    def __init__(self, data_array, threshold=0.1, low_energy_threshold=5, merge_type='p_value', func=None):
         """
         Initialize the Regularize class.
 
@@ -14,8 +14,11 @@ class Regularize:
         """
         self.data = data_array
         self.threshold = threshold
+        self.low_energy_threshold = low_energy_threshold
+        self.merge_type = merge_type
+        self.func = func
 
-    def calculate_g_matrix(self, xyz_data, clusters):
+    def calculate_g_matrix_p_value(self, xyz_data, clusters):
         """
         Calculate the G matrix based on Mahalanobis distances between clusters.
 
@@ -35,6 +38,7 @@ class Regularize:
         # Calculate means, covariance matrices, and counts for each cluster
         epsilon = 1e-3  # Small factor to penalize clusters with insufficient data
         cluster_stats = {}
+
 
         for cluster in unique_clusters:
             cluster_data = xyz_data[clusters == cluster]
@@ -105,6 +109,73 @@ class Regularize:
         np.fill_diagonal(G, 0)  # Ensure diagonal remains zero
         return G
 
+    def calculate_g_matrix_cdist(self, xyz_data, clusters):
+        """
+        Calculate the G matrix based on a custom distance metric.
+
+        Parameters:
+        - xyz_data: 2D NumPy array with x, y, z data for all points.
+        - clusters: 1D NumPy array with cluster labels for each point.
+        - get_directions: Function to extract metrics for clusters.
+
+        Returns:
+        - G: 2D NumPy array (KxK), where K is the number of unique clusters.
+        """
+
+        unique_clusters = np.unique(clusters)
+        K = len(unique_clusters)
+
+        # Initialize the G matrix
+        G = np.zeros((K, K))
+
+        # Iterate through pairs of clusters to calculate the custom metric
+        for i in range(K):
+            for j in range(i + 1, K):  # Upper triangle only
+                cluster_i, cluster_j = unique_clusters[i], unique_clusters[j]
+
+                # Get data for the two clusters
+                track1 = xyz_data[clusters == cluster_i]
+                track2 = xyz_data[clusters == cluster_j]
+
+                # Skip if either cluster has no points
+                if track1.size == 0 or track2.size == 0:
+                    G[i, j] = G[j, i] = 0
+                    continue
+
+                # Extract directions and compute the custom metric
+                try:
+                    end_point1, start_point1, beam_vector1, dirVecTrackNorm1, track_mean1, closest_points1 = self.func(track1)
+                    end_point2, start_point2, beam_vector2, dirVecTrackNorm2, track_mean2, closest_points2 = self.func(track2)
+
+                    dist1 = np.linalg.norm(end_point1 - start_point2)
+                    dist2 = np.linalg.norm(end_point2 - start_point1)
+
+                    custom_metric = min(dist1, dist2)
+
+                    # Apply threshold
+                    if custom_metric > self.low_energy_threshold:
+                        custom_metric = 0
+
+                    G[i, j] = round(custom_metric, 4)
+                    G[j, i] = G[i, j]  # Ensure symmetry
+                except Exception as e:
+                    G[i, j] = G[j, i] = 0  # Handle any calculation errors gracefully
+                    # print(f"Error calculating metric for clusters {cluster_i} and {cluster_j}: {e}")
+
+        # Retain only the maximum value in each column
+        for j in range(K):
+            non_zero_values = G[:, j][G[:, j] != 0]
+            if non_zero_values.size > 0:
+                max_value = np.max(non_zero_values)
+                G[:, j][G[:, j] != max_value] = 0
+                G[j, :][G[j, :] != max_value] = 0
+
+        # Ensure diagonal is zero
+        np.fill_diagonal(G, 0)
+
+        return G
+
+
     def merge_labels(self):
         """
         Merge clusters based on the G matrix until no further merging is possible.
@@ -112,9 +183,13 @@ class Regularize:
         Returns:
         - clusters: 1D NumPy array with updated cluster labels.
         """
-        xyz_data = self.data[:, 0:3]
-        clusters = self.data[:, 6].astype(int)
+
+
+        xyz_data = self.data[:, DataArray.X.value:DataArray.Z.value + 1]
+
+        clusters = self.data[:, DataArray.gmm_labels.value].astype(int)
         unique_clusters = np.unique(clusters)
+
 
         iteration = 0
         while True:
@@ -122,7 +197,10 @@ class Regularize:
             # print(f"Iteration {iteration}: Unique clusters = {len(unique_clusters)}")
 
             # Calculate the G matrix
-            G = self.calculate_g_matrix(xyz_data, clusters)
+            if self.merge_type == 'p_value':
+                G = self.calculate_g_matrix_p_value(xyz_data, clusters)
+            if self.merge_type == 'cdist':
+                G = self.calculate_g_matrix_cdist(xyz_data, clusters)
             # Find non-zero indices in the G matrix
             non_zero_indices = np.argwhere(G != 0)
             if non_zero_indices.size == 0 or iteration > 50:
@@ -153,15 +231,3 @@ class Regularize:
         return clusters
 
 
-# Example Usage
-if __name__ == "__main__":
-    # Create synthetic data
-    data = np.random.rand(100, 7)  # 100 points, 7 columns
-    data[:, 6] = np.random.randint(0, 5, size=100)  # Assign random clusters (0-4)
-
-    # Initialize the Regularize class
-    reg = Regularize(data_array=data, threshold=0.05)
-
-    # Perform merging
-    final_clusters = reg.merge_labels()
-    print("Final merged clusters:", np.unique(final_clusters))

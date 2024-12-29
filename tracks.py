@@ -35,6 +35,7 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.cluster import DBSCAN
 from kneed import KneeLocator
 from regularize import Regularize
+from libraries import DataArray
 np.random.seed(42)
 
 #######################################
@@ -49,7 +50,7 @@ split_strings = input_string.split('@')
 excitation_energies=[split_strings[0]]
 cm_angles=[split_strings[1]]
 path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/DATA/SIMULATION/5000/"
-plots = False
+plots = True
 sim = True
 debug=False
 final_plots_flag = False
@@ -57,7 +58,7 @@ event_start = int(split_strings[2])
 event_end = int(split_strings[3])
 save_final_data=False
 with_missing_pads = True
-batch_mode = True
+batch_mode = False
 save_to_root = False
 save_python_figures = False
 
@@ -91,8 +92,8 @@ x_conversion_factor = 2.0  # units[mm]
 y_conversion_factor = 2.0  # units[mm]
 missing_pads_info = "HitResponses.dat"
 missed_pads = np.loadtxt(missing_pads_info)
-x_pos_raw = missed_pads[:,0]
-y_pos_raw = missed_pads[:,1]
+x_pos_raw = missed_pads[:, 0]
+y_pos_raw = missed_pads[:, 1]
 nbins_x = 128
 x_start_bin = 0 * x_conversion_factor
 x_end_bin = 128 * x_conversion_factor
@@ -406,15 +407,15 @@ def get_data_array(beam_center, entries, event_info):
                     data_points.append([posX, posY, posZ, Qvox])
     data = np.array(data_points)
     if plots:
-        charge = data[:,3]
+        charge = data[:, DataArray.Q.value]
         cmap = plt.cm.get_cmap("viridis", len(charge))
         update_clear(ax2)
         update_clear(ax3)
         update_clear(ax4)
-        colorbar1 = add_rectangles(ax2, data[:, 0:3], charge, cmap, proj = 'xy', colorbarFlag=True)
-        colorbar2 = add_rectangles(ax3, data[:, 0:3], charge, cmap, proj = 'yz', colorbarFlag=True)
-        colorbar3 = add_rectangles(ax4, data[:, 0:3], charge, cmap, proj = 'xz', colorbarFlag=True)
-        num_data_points = len(data[:,0])
+        colorbar1 = add_rectangles(ax2, data[:, DataArray.X.value:DataArray.Z.value + 1], charge, cmap, proj = 'xy', colorbarFlag=True)
+        colorbar2 = add_rectangles(ax3, data[:, DataArray.X.value:DataArray.Z.value + 1], charge, cmap, proj = 'yz', colorbarFlag=True)
+        colorbar3 = add_rectangles(ax4, data[:, DataArray.X.value:DataArray.Z.value + 1], charge, cmap, proj = 'xz', colorbarFlag=True)
+        num_data_points = len(data[:, DataArray.X.value])
         ax2.plot([event_info.verX, event_info.verX + line_length * event_info.dirX],[event_info.verY, event_info.verY + line_length * event_info.dirY],
                  color='blue', alpha=transparency)
         ax2.scatter(event_info.verX, event_info.verY, color='red', edgecolor='black', s=50, zorder=3)  # Circle for vertex
@@ -450,7 +451,7 @@ def get_data_array(beam_center, entries, event_info):
 
 # Function to plot true labels
 def generate_true_labels(data_array, event_info):
-    y_values = data_array[:,1]
+    y_values = data_array[:, DataArray.Y.value]
     labels = np.where((y_values >= beam_zone_low) & (y_values < beam_zone_high), 0, 1)
     data_array = np.column_stack((data_array, labels))
     if plots:
@@ -458,10 +459,10 @@ def generate_true_labels(data_array, event_info):
         update_clear(ax5)
         update_clear(ax6)
         update_clear(ax7)
-        colorbar4 = add_rectangles(ax5, data_array[:, 0:3], labels, cmap, proj = 'xy', colorbarFlag=False, discrete=True)
-        colorbar5 = add_rectangles(ax6, data_array[:, 0:3], labels, cmap, proj = 'yz', colorbarFlag=False, discrete=True)
-        colorbar6 = add_rectangles(ax7, data_array[:, 0:3], labels, cmap, proj = 'xz', colorbarFlag=False, discrete=True)
-        num_data_points = len(data_array[:,0])
+        colorbar4 = add_rectangles(ax5, data_array[:, DataArray.X.value:DataArray.Z.value + 1], labels, cmap, proj = 'xy', colorbarFlag=False, discrete=True)
+        colorbar5 = add_rectangles(ax6, data_array[:, DataArray.X.value:DataArray.Z.value + 1], labels, cmap, proj = 'yz', colorbarFlag=False, discrete=True)
+        colorbar6 = add_rectangles(ax7, data_array[:, DataArray.X.value:DataArray.Z.value + 1], labels, cmap, proj = 'xz', colorbarFlag=False, discrete=True)
+        num_data_points = len(data_array[:, DataArray.X.value])
         # Place the number of data points in the top right corner
         ax5.plot([event_info.verX, event_info.verX + line_length * event_info.dirX],[event_info.verY, event_info.verY + line_length * event_info.dirY],
                  color='blue', alpha=transparency)
@@ -495,14 +496,14 @@ def generate_true_labels(data_array, event_info):
 
 # Function to plot clusters from ransac
 def plot_ransac(data_array, event_info):
-    labels = data_array[:, 5]
+    labels = data_array[:, DataArray.ransac_labels.value]
     cmap = plt.cm.get_cmap("Dark2", len(np.unique(labels)))
     update_clear(ax8)
     update_clear(ax9)
     update_clear(ax10)
-    colorbar4 = add_rectangles(ax8, data_array[:, 0:3], labels, cmap, proj = 'xy', colorbarFlag=True, discrete=True)
-    colorbar5 = add_rectangles(ax9, data_array[:, 0:3], labels, cmap, proj = 'yz', colorbarFlag=True, discrete=True)
-    colorbar6 = add_rectangles(ax10, data_array[:, 0:3], labels, cmap, proj = 'xz', colorbarFlag=True, discrete=True)
+    colorbar4 = add_rectangles(ax8, data_array[:, DataArray.X.value:DataArray.Z.value + 1], labels, cmap, proj = 'xy', colorbarFlag=True, discrete=True)
+    colorbar5 = add_rectangles(ax9, data_array[:, DataArray.X.value:DataArray.Z.value + 1], labels, cmap, proj = 'yz', colorbarFlag=True, discrete=True)
+    colorbar6 = add_rectangles(ax10, data_array[:, DataArray.X.value:DataArray.Z.value + 1], labels, cmap, proj = 'xz', colorbarFlag=True, discrete=True)
      # Place the number of data points in the top right corner
     ax8.plot([event_info.verX, event_info.verX + line_length * event_info.dirX],[event_info.verY, event_info.verY + line_length * event_info.dirY],
                 color='blue', alpha=transparency)
@@ -550,33 +551,32 @@ def return_threshold_lines(start_point, direction_vector):
 # Function to plot the kinematics of RANSAC Clusters
 def kinematics_ransac(data, fitted_models, useLineModelND):
     # Define the beam line endpoints
-    data = data[data[:, 5] != 20]
-    data = add_filters(data, model=int(5))
+    data = data[data[:, DataArray.ransac_labels.value] != 20]
     lab_angles_initial = {}
     intersections_initial = {}
     phi_angles_initial = {}
     start_point_initial = {}
     end_point_initial = {}
-    ransac_labels = np.unique(data[:, 5])
+    ransac_labels = np.unique(data[:, DataArray.ransac_labels.value])
     for label in ransac_labels:
         # Get the points corresponding to the current label
-        cluster_data = data[data[:, 5] == label]
+        cluster_data = data[data[:, DataArray.ransac_labels.value] == label]
 
         # Check if the cluster size is greater than 10
         if cluster_data.shape[0] <= 10:
             continue  # Skip this cluster if it has 10 or fewer points
 
         # Calculate the mean y of the cluster
-        mean_y = np.mean(cluster_data[:, 1])
+        mean_y = np.mean(cluster_data[:, DataArray.Y.value])
         # Process clusters either above or below the beam line
         if (mean_y >= VolumeBoundaries.BEAM_ZONE_MAX.value or mean_y < VolumeBoundaries.BEAM_ZONE_MIN.value) and cluster_data.shape[0] >= 10:
             mask = (
-                (cluster_data[:, 9] == 1) &  # Column 8: (beam_track_flag_col) = 1
-                (cluster_data[:, 10] == 1) &  # Column 9: (volume_check_flag_col) = 1
-                (cluster_data[:, 11] == 1) &  # Column 10: (intersection_flag_col) = 1
-                ((cluster_data[:, 12] == 1) | (cluster_data[:, 12] == -1)) &  # Column 11: (side_flag_col) = 1 or -1
-                ((cluster_data[:, 13] == 1) | (cluster_data[:, 13] == -1)) & # Column 12: (proximity_flag_col) = 1 or -1
-                (cluster_data[:, 14] == 1) # Column 12: Track End point above the beam zone
+                (cluster_data[:, DataArray.scattered_track.value] == 1) &  # Column 8: (beam_track_flag_col) = 1
+                (cluster_data[:, DataArray.track_inside_volume.value] == 1) &  # Column 9: (volume_check_flag_col) = 1
+                (cluster_data[:, DataArray.vertex_inside_volume.value] == 1) &  # Column 10: (intersection_flag_col) = 1
+                ((cluster_data[:, DataArray.side_of_track.value] == 1) | (cluster_data[:, DataArray.side_of_track.value] == -1)) &  # Column 11: (side_flag_col) = 1 or -1
+                ((cluster_data[:, DataArray.closest_track.value] == 1) | (cluster_data[:, DataArray.closest_track.value] == -1)) & # Column 12: (proximity_flag_col) = 1 or -1
+                (cluster_data[:, DataArray.end_point_above_beam_zone.value] == 1) # Column 12: Track End point above the beam zone
             )
             if cluster_data[mask, :3].size > 0:
                 # Fill the lab angles and intersections based on first PCA fit.
@@ -704,14 +704,14 @@ def fit_gmm_with_bic(data, max_components=10):
 
 # Function to plot the GMM assigned clusters
 def plot_gmm(data_array, event_info):
-    labels = data_array[:, 8]
+    labels = data_array[:, DataArray.merge_cdist.value]
     cmap = plt.cm.get_cmap("Dark2", len(np.unique(labels)))
     update_clear(ax11)
     update_clear(ax12)
     update_clear(ax13)
-    colorbar7 = add_rectangles(ax11, data_array[:, 0:3], labels, cmap, proj = 'xy', colorbarFlag=True, discrete=True)
-    colorbar8 = add_rectangles(ax12, data_array[:, 0:3], labels, cmap, proj = 'yz', colorbarFlag=True, discrete=True)
-    colorbar9 = add_rectangles(ax13, data_array[:, 0:3], labels, cmap, proj = 'xz', colorbarFlag=True, discrete=True)
+    colorbar7 = add_rectangles(ax11, data_array[:, DataArray.X.value:DataArray.Z.value + 1], labels, cmap, proj = 'xy', colorbarFlag=True, discrete=True)
+    colorbar8 = add_rectangles(ax12, data_array[:, DataArray.X.value:DataArray.Z.value + 1], labels, cmap, proj = 'yz', colorbarFlag=True, discrete=True)
+    colorbar9 = add_rectangles(ax13, data_array[:, DataArray.X.value:DataArray.Z.value + 1], labels, cmap, proj = 'xz', colorbarFlag=True, discrete=True)
      # Place the number of data points in the top right corner
     ax11.plot([event_info.verX, event_info.verX + line_length * event_info.dirX],[event_info.verY, event_info.verY + line_length * event_info.dirY],
                 color='blue', alpha=transparency)
@@ -749,22 +749,22 @@ def kinematics_gmm(data, responsibilities, event_info):
     closest_threshold_dict = {}
     closest_angle_dict = {}
 
-    data = add_filters(data, model= int(8))
-    gmm_labels = np.unique(data[:, 8])
+    gmm_labels = np.unique(data[:, DataArray.merge_p_val.value])
     for label in gmm_labels:
-        cluster_data = data[data[:, 8] == label]
+        cluster_data = data[data[:, DataArray.merge_p_val.value] == label]
         if len(cluster_data) < 10:
             continue  # Skip clusters with fewer than 10 points
         # Calculate the mean of Y coordinate
-        mean_y = np.mean(cluster_data[:, 1])
+        mean_y = np.mean(cluster_data[:, DataArray.Y.value])
         if (mean_y >= VolumeBoundaries.BEAM_ZONE_MAX.value or mean_y < VolumeBoundaries.BEAM_ZONE_MIN.value) and cluster_data.shape[0] >= 10:
+            # Mask for selecting tracks
             mask = (
-                    (cluster_data[:, 9] == 1) &  # Column 9: (beam_track_flag_col) = 1
-                    (cluster_data[:, 10] == 1) &  # Column 10: (volume_check_flag_col) = 1
-                    (cluster_data[:, 11] == 1) &  # Column 11: (intersection_flag_col) = 1
-                    ((cluster_data[:, 12] == 1) | (cluster_data[:, 12] == -1)) &  # Column 12: (side_flag_col) = 1 or -1
-                    ((cluster_data[:, 13] == 1) | (cluster_data[:, 13] == -1)) & # Column 13: (proximity_flag_col) = 1 or 2
-                    (cluster_data[:, 14] == 1) # Column 14: Track End point above the beam zone
+                    (cluster_data[:, DataArray.scattered_track.value] == 1) &  # Column 9: (beam_track_flag_col) = 1
+                    (cluster_data[:, DataArray.track_inside_volume.value] == 1) &  # Column 10: (volume_check_flag_col) = 1
+                    (cluster_data[:, DataArray.vertex_inside_volume.value] == 1) &  # Column 11: (intersection_flag_col) = 1
+                    ((cluster_data[:, DataArray.side_of_track.value] == 1) | (cluster_data[:, DataArray.side_of_track.value] == -1)) &  # Column 12: (side_flag_col) = 1 or -1
+                    ((cluster_data[:, DataArray.closest_track.value] == 1) | (cluster_data[:, DataArray.closest_track.value] == -1)) & # Column 13: (proximity_flag_col) = 1 or 2
+                    (cluster_data[:, DataArray.end_point_above_beam_zone.value] == 1) # Column 14: Track End point above the beam zone
                 )
             if cluster_data[mask, :3].size > 0:
                 # Fill the lab angles and intersections based on first PCA fit.
@@ -801,12 +801,12 @@ def kinematics_gmm(data, responsibilities, event_info):
             range_6 = np.linspace(0.4, 0.5, 50)
             range_7 = np.linspace(0.5, 1, 10)
             # Concatenate all ranges
-            beam_zone_mask = (data_array[:, 1] >= 120) & (data_array[:, 1] <= 134)
-            labels_for_current_label = data_array[:, 8] == label
+            beam_zone_mask = (data_array[:, DataArray.Y.value] >= 120) & (data_array[:, DataArray.Y.value] <= 134)
+            labels_for_current_label = data_array[:, DataArray.merge_p_val.value] == label
             not_belonging_to_label = ~labels_for_current_label
             inside_beam_zone_not_label = beam_zone_mask & not_belonging_to_label
             res = np.concatenate([range_1, range_2, range_3, range_4, range_5, range_6, range_7])
-            gmm_indices = np.where(data_array[:, 8] == label)[0]
+            gmm_indices = np.where(data_array[:, DataArray.merge_p_val.value] == label)[0]
             gmm_labels_raw = np.unique(data_array[gmm_indices, 6])
             gmm_labels_raw = np.array(gmm_labels_raw, dtype=int)
             # res = [0.1]
@@ -837,7 +837,7 @@ def kinematics_gmm(data, responsibilities, event_info):
                     ax11.scatter(data[final_mask, 0]+1, data[final_mask, 1]+1, marker = 'o')
                     ax12.scatter(data[final_mask, 1]+1, data[final_mask, 2]+1, marker = 'o')
                     ax13.scatter(data[final_mask, 0]+1, data[final_mask, 2]+1, marker = 'o')
-    return lab_angles_initial, intersections_initial, lab_angles_minimize, start_point_initial, end_point_initial, closest_threshold_dict, closest_angle_dict, phi_angles_initial
+    return lab_angles_initial, intersections_initial, lab_angles_minimize, start_point_initial, end_point_initial, closest_threshold_dict, closest_angle_dict, phi_angles_initial, data
 
 # Function to do final plots
 def final_plots(axes_final, bin_range, bin_width, plot_list, notation):
@@ -857,9 +857,9 @@ def beam_track_data(data_array):
         raise ValueError("data_array must have at least 7 columns")
 
     # Extract RANSAC and GMM labels
-    ransac_labels = data_array[:, 5]
-    gmm_labels = data_array[:, 6]
-    y_values = data_array[:, 1]  # Assuming the second column is y
+    ransac_labels = data_array[:, DataArray.ransac_labels.value]
+    gmm_labels = data_array[:, DataArray.gmm_labels.value]
+    y_values = data_array[:, DataArray.Y.value]  # Assuming the second column is y
 
     # Create dictionaries to hold y-values for each RANSAC and GMM cluster
     ransac_clusters = {}
@@ -1051,7 +1051,7 @@ def add_filters(data, model):
         track_indices = np.where(data[:, model] == label)[0]
 
         # Calculate mean_y for determining beam or scattered track (Column 8)
-        mean_y = np.mean(cluster_data[:, 1])
+        mean_y = np.mean(cluster_data[:, DataArray.Y.value])
         if VolumeBoundaries.BEAM_ZONE_MIN.value <= mean_y <= VolumeBoundaries.BEAM_ZONE_MAX.value:
             beam_track_flag_col[track_indices] = 0  # Beam track
         else:
@@ -1163,7 +1163,7 @@ def dbcluster(data_array, N_PROC, nn_neighbor, nn_radius, db_min_samples, sensit
     epsilon_ = 0  # Default epsilon value
     try:
         # Extract the first three columns (x, y, z)
-        extractedData = data_array[:, 0:3]
+        extractedData = data_array[:, DataArray.X.value:DataArray.Z.value + 1]
 
         # Nearest neighbors setup
         neigh = NearestNeighbors(n_neighbors=nn_neighbor, radius=nn_radius)
@@ -1260,6 +1260,57 @@ def hierarchical_clustering_with_responsibilities(data_array, max_components=10)
 
     return final_labels, current_label_offset, final_responsibilities, dbscan_labels
 
+# Function to calculate the metrics for low energy tracks
+def calculate_metric_low_energy(data):
+
+    # Filter tracks based on flags
+    scattered_tracks = data[:, DataArray.scattered_track.value] == 1  # Column 10: Scattered track
+    within_volume = data[:, DataArray.track_inside_volume.value] == 1  # Column 11: Track within volume
+    vertex_inside_volume = data[:, DataArray.vertex_inside_volume.value] == 1  # Column 12: Track vertex inside volume
+    endpoint_above_beam = data[:, DataArray.end_point_above_beam_zone.value] == 1  # Column 15: Track endpoint above beam zone
+
+    # Combine all conditions to filter tracks that meet the specified criteria
+    valid_tracks = scattered_tracks & within_volume
+
+    # Filter out the relevant data points
+    filtered_data = data[valid_tracks]
+
+    # Create two dictionaries: one for tracks above and one for tracks below
+    tracks_above = {}
+    tracks_below = {}
+
+    # Iterate over unique track labels
+    unique_labels = np.unique(filtered_data[:, DataArray.merge_p_val.value])  # Column 9: Labels
+
+    for label in unique_labels:
+        label_data = filtered_data[filtered_data[:, DataArray.merge_p_val.value] == label]
+
+        # Classify the tracks based on column 13 (above or below)
+        if np.all(label_data[:, DataArray.side_of_track.value] == 1):  # Track is above (Column 13 == 1)
+            tracks_above[label] = label_data[:, :4]  # x, y, z, q (first four columns)
+
+        elif np.all(label_data[:, DataArray.side_of_track.value] == -1):  # Track is below (Column 13 == -1)
+            tracks_below[label] = label_data[:, :4]  # x, y, z, q (first four columns)
+
+    metrics_low_energy = {}
+    for tracks_dict in (tracks_above, tracks_below):
+        labels = list(tracks_dict.keys())
+        for i in range(len(labels)):
+            for j in range(i + 1, len(labels)):
+                label1 = labels[i]
+                label2 = labels[j]
+                track1 = tracks_dict[label1][:, :3]
+                track2 = tracks_dict[label2][:, :3]
+                end_point1, start_point1, beam_vector1, dirVecTrackNorm1, track_mean1, closest_points1 = get_directions(track1)
+                end_point2, start_point2, beam_vector2, dirVecTrackNorm2, track_mean2, closest_points2 = get_directions(track2)
+                dist1 = np.linalg.norm(end_point1 - start_point2)
+                dist2 = np.linalg.norm(end_point2 - start_point1)
+                metrics_low_energy[(label1, label2)] = min(dist1, dist2)
+
+    return metrics_low_energy
+
+
+
 
 #######################################
 # Main Function
@@ -1290,7 +1341,7 @@ for energy in excitation_energies:
             try:
                 if entries.data.event >= event_start and entries.data.event <= event_end:
 
-                    print('Event ->', entries.data.event)
+                    print('Event -->', entries.data.event)
                     event_info = EventInfo(event_id=None,
                                         verX= None,
                                         verY= None,
@@ -1353,11 +1404,45 @@ for energy in excitation_energies:
                     #Get Prediced Labels from GMM
                     # data_array = [0-x,1-y,2-z,3-q, 4-true labels, 5-ransac labels, 6-gmm labels, 7-dbscan labels, 8 - merge labels]
                     gmm_labels, n_comp, responsibilities, dbscan_labels = hierarchical_clustering_with_responsibilities(data_array, max_components=10)
+
                     data_array = np.column_stack((data_array, gmm_labels))
                     data_array = np.column_stack((data_array, dbscan_labels))
-                    reg = Regularize(data_array=data_array, threshold=0.1)
+                    reg = Regularize(data_array=data_array, threshold=0.1, merge_type='p_value')
                     final_clusters = reg.merge_labels()
                     data_array = np.column_stack((data_array, final_clusters))
+                    data_array = np.column_stack((data_array, final_clusters))
+
+
+                    # Create Filters to the tracks
+                    # data_array = [0-x,1-y,2-z,3-q, 4-true labels, 5-ransac labels, 6-gmm labels, 7-dbscan labels, 8 - merge labels]
+                    # data_array = [9-scattered track, 10-track inside volume, 11-vertex inside volume, 12- side of track, 13-closest track, 14 - end point above beam zone]
+                    data_array = add_filters(data_array, model= int(DataArray.merge_p_val.value))
+
+                    scattered_condition = data_array[:, DataArray.scattered_track.value] == 1
+                    scattered_above_mask = data_array[:, DataArray.side_of_track.value] == 1
+                    scattered_below_mask = data_array[:, DataArray.side_of_track.value] == -1
+
+                    scattered_above = scattered_condition & scattered_above_mask
+                    scattered_below = scattered_condition & scattered_below_mask
+
+
+                    metric_low_energy = calculate_metric_low_energy(data_array)
+
+                    highest_label = max(final_clusters)
+                    data_array_above = data_array[scattered_above, :]
+                    if data_array_above.size > 0:
+                        reg_low_energy_above = Regularize(data_array=data_array_above, low_energy_threshold=5, merge_type='cdist', func=get_directions)
+                        final_clusters_above = reg_low_energy_above.merge_labels()
+                        final_clusters_above += highest_label
+                        highest_label = max(final_clusters_above)
+                        data_array[scattered_above, DataArray.merge_cdist.value] = final_clusters_above
+                    data_array_below = data_array[scattered_below, :]
+                    if data_array_below.size > 0:
+                        reg_low_energy_below = Regularize(data_array=data_array_below, low_energy_threshold=5, merge_type='cdist', func=get_directions)
+                        final_clusters_below = reg_low_energy_below.merge_labels()
+                        final_clusters_below += highest_label
+                        data_array[scattered_below, DataArray.merge_cdist.value] = final_clusters_below
+
                     gmm['components'] = n_comp
 
                     if plots:
@@ -1371,7 +1456,8 @@ for energy in excitation_energies:
                     ransac['end_point'] = end_point_ransac
                     ransac['phi_angles'] = phi_angle_ransac
 
-                    angles_gmm, intersections_gmm, angles_minimize_gmm, start_point_gmm, end_point_gmm, closest_resp, closest_angle, phi_angle_gmm = kinematics_gmm(data_array, responsibilities, event_info)
+                    angles_gmm, intersections_gmm, angles_minimize_gmm, start_point_gmm, end_point_gmm, closest_resp, closest_angle, phi_angle_gmm, data_with_filters = kinematics_gmm(data_array, responsibilities, event_info)
+
                     print('GMM angles', angles_gmm)
                     gmm['angles'] = angles_gmm
                     gmm['intersections'] = intersections_gmm
@@ -1381,6 +1467,9 @@ for energy in excitation_energies:
                     gmm['min_res'] = closest_resp
                     gmm['min_angle'] = closest_angle
                     gmm['phi_angles'] = phi_angle_gmm
+
+                    print('Printing the metric')
+                    print(metric_low_energy)
 
                     # print('GMM intersections', intersections_gmm)
                     # print('minimize', angles_minimize_gmm)
@@ -1408,8 +1497,8 @@ for energy in excitation_energies:
                     gmm['beam_components'] = unique_beam_gmm
                     gmm['track_components'] = unique_track_gmm
 
-                    ransac['ari'] = round(adjusted_rand_score(data_array[:, 4], data_array[:, 5]), 2)
-                    gmm['ari'] = round(adjusted_rand_score(data_array[:, 4], data_array[:, 6]), 2)
+                    ransac['ari'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels.value], data_array[:, DataArray.ransac_labels.value]), 2)
+                    gmm['ari'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels.value], data_array[:, DataArray.gmm_labels.value]), 2)
 
                     # Append to the list of named tuples
                     event_info = event_info._replace(ransac=ransac)
