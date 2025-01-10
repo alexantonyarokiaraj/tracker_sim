@@ -49,7 +49,7 @@ input_string = arguments[1]
 split_strings = input_string.split('@')
 excitation_energies=[split_strings[0]]
 cm_angles=[split_strings[1]]
-path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/DATA/SIMULATION/5000/"
+path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/DATA/simulation/5000/"
 plots = True
 sim = True
 debug=False
@@ -375,6 +375,7 @@ def get_beam_center(entries):
 def get_data_array(beam_center, entries, event_info):
     global axs
     data_points = []
+    incoming_labels = []
     # print("Getting Data Array")
     length = entries.data.CoboAsad.size()
     for x in range(length):
@@ -405,16 +406,18 @@ def get_data_array(beam_center, entries, event_info):
                 Qvox = entries.data.CoboAsad[int(x)].peakheight[int(y)]
                 if not entries.data.CoboAsad[x].hasSaturation and not missing_pad_check:
                     data_points.append([posX, posY, posZ, Qvox])
+                    incoming_labels.append(entries.data.CoboAsad[int(x)].trackID[int(y)])
     data = np.array(data_points)
     if plots:
-        charge = data[:, DataArray.Q.value]
-        cmap = plt.cm.get_cmap("viridis", len(charge))
+        # charge = data[:, DataArray.Q.value]
+        charge = np.array(incoming_labels)
+        cmap = plt.cm.get_cmap("Dark2", len(np.unique(charge)))
         update_clear(ax2)
         update_clear(ax3)
         update_clear(ax4)
-        colorbar1 = add_rectangles(ax2, data[:, DataArray.X.value:DataArray.Z.value + 1], charge, cmap, proj = 'xy', colorbarFlag=True)
-        colorbar2 = add_rectangles(ax3, data[:, DataArray.X.value:DataArray.Z.value + 1], charge, cmap, proj = 'yz', colorbarFlag=True)
-        colorbar3 = add_rectangles(ax4, data[:, DataArray.X.value:DataArray.Z.value + 1], charge, cmap, proj = 'xz', colorbarFlag=True)
+        colorbar1 = add_rectangles(ax2, data[:, DataArray.X.value:DataArray.Z.value + 1], charge, cmap, proj = 'xy', colorbarFlag=False, discrete=True)
+        colorbar2 = add_rectangles(ax3, data[:, DataArray.X.value:DataArray.Z.value + 1], charge, cmap, proj = 'yz', colorbarFlag=False, discrete=True)
+        colorbar3 = add_rectangles(ax4, data[:, DataArray.X.value:DataArray.Z.value + 1], charge, cmap, proj = 'xz', colorbarFlag=False, discrete=True)
         num_data_points = len(data[:, DataArray.X.value])
         ax2.plot([event_info.verX, event_info.verX + line_length * event_info.dirX],[event_info.verY, event_info.verY + line_length * event_info.dirY],
                  color='blue', alpha=transparency)
@@ -1522,7 +1525,7 @@ for energy in excitation_energies:
                         while not next_pressed:
                             plt.waitforbuttonpress(0.1)
                         if next_pressed:
-                            for colorbar in chain(colorbars, colorbars_ransac, colorbars_gmm):
+                            for colorbar in chain(colorbars_ransac, colorbars_gmm):
                                 colorbar.remove()
                             continue
                 else:
