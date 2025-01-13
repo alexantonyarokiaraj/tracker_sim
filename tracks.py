@@ -36,6 +36,8 @@ from sklearn.cluster import DBSCAN
 from kneed import KneeLocator
 from regularize import Regularize
 from libraries import DataArray
+from collections import defaultdict
+
 np.random.seed(42)
 
 #######################################
@@ -80,12 +82,12 @@ NB_ASAD = 4
 NB_AGET = 4
 NB_CHANNEL = 68
 beam_entrance_time = 8.96  # units [ns]
-beam_center_time = 9980.0 - beam_entrance_time  # units[ns], 7076.0
+beam_center_time = 10970.0 - beam_entrance_time  # units[ns], 7076.0
 beam_center_peak_find_low = 8000  # units[ns]
 beam_center_peak_find_high = 14000  # units[ns]
 sig_beam_center = 70.0  # units [ns]
 time_per_sample = 0.08  # units [us]
-drift_velocity_volume = 1.28  # units [cm/us]
+drift_velocity_volume = 1.16  # units [cm/us]
 table = np.loadtxt("LT_GANIL_NewCF_marine.dat")
 z_conversion_factor = drift_velocity_volume*(10.0/1000.0)
 x_conversion_factor = 2.0  # units[mm]
@@ -354,6 +356,7 @@ def get_beam_center(entries):
             z_proj.Fit(fit_gaus, "RQN0", "NOM", max_location - 4 * sig_beam_center,
                     max_location + 4 * sig_beam_center)
             beam_c = fit_gaus.GetParameter(1) - beam_entrance_time
+            print('Center of Z->', beam_c)
         else:
             beam_c = beam_center_time - beam_entrance_time
     except:
@@ -362,7 +365,7 @@ def get_beam_center(entries):
         z_proj_nparr = np.array(z_proj_arr)
         update_clear(ax1)
         ax1.hist(z_proj_nparr, bins=50, range=(beam_center_time-1000,beam_center_time+1000), color='skyblue', alpha=0.7, label="Time")
-        ax1.text(0.95, 0.95, f'Beam Center: {beam_center_time}',
+        ax1.text(0.95, 0.95, f'Beam Center: {beam_c}',
             horizontalalignment='right',
             verticalalignment='top',
             transform=ax1.transAxes,  # Use axes coordinates
@@ -408,9 +411,10 @@ def get_data_array(beam_center, entries, event_info):
                     data_points.append([posX, posY, posZ, Qvox])
                     incoming_labels.append(entries.data.CoboAsad[int(x)].trackID[int(y)])
     data = np.array(data_points)
+    true_labels_sim = assign_beam_or_scattered(data, incoming_labels)
     if plots:
         # charge = data[:, DataArray.Q.value]
-        charge = np.array(incoming_labels)
+        charge = np.array(true_labels_sim)
         cmap = plt.cm.get_cmap("Dark2", len(np.unique(charge)))
         update_clear(ax2)
         update_clear(ax3)
@@ -448,9 +452,9 @@ def get_data_array(beam_center, entries, event_info):
                 fontsize=12,
                 bbox=dict(facecolor='white', alpha=0.5))
         plt.draw()
-        return data, [colorbar1, colorbar2, colorbar3]
+        return data, incoming_labels, [colorbar1, colorbar2, colorbar3]
     # print('Checking plot return')
-    return data
+    return data, incoming_labels
 
 # Function to plot true labels
 def generate_true_labels(data_array, event_info):
@@ -804,13 +808,13 @@ def kinematics_gmm(data, responsibilities, event_info):
             range_6 = np.linspace(0.4, 0.5, 50)
             range_7 = np.linspace(0.5, 1, 10)
             # Concatenate all ranges
-            beam_zone_mask = (data_array[:, DataArray.Y.value] >= 120) & (data_array[:, DataArray.Y.value] <= 134)
-            labels_for_current_label = data_array[:, DataArray.merge_p_val.value] == label
+            beam_zone_mask = (data[:, DataArray.Y.value] >= VolumeBoundaries.BEAM_ZONE_MIN.value-2) & (data[:, DataArray.Y.value] <= VolumeBoundaries.BEAM_ZONE_MAX.value+2)
+            labels_for_current_label = data[:, DataArray.merge_p_val.value] == label
             not_belonging_to_label = ~labels_for_current_label
             inside_beam_zone_not_label = beam_zone_mask & not_belonging_to_label
             res = np.concatenate([range_1, range_2, range_3, range_4, range_5, range_6, range_7])
-            gmm_indices = np.where(data_array[:, DataArray.merge_p_val.value] == label)[0]
-            gmm_labels_raw = np.unique(data_array[gmm_indices, 6])
+            gmm_indices = np.where(data[:, DataArray.merge_p_val.value] == label)[0]
+            gmm_labels_raw = np.unique(data[gmm_indices, 6])
             gmm_labels_raw = np.array(gmm_labels_raw, dtype=int)
             # res = [0.1]
             if cluster_data[mask, :3].size > 0:
@@ -893,7 +897,7 @@ def beam_track_data(data_array):
             mean_y = np.mean(y_vals)
             unique_labels.add(label)
 
-            if 122 <= mean_y < 132:
+            if VolumeBoundaries.BEAM_ZONE_MIN.value <= mean_y < VolumeBoundaries.BEAM_ZONE_MAX.value:
                 beam_count += 1  # Count as beam
             else:
                 track_count += 1  # Count as track
@@ -1313,6 +1317,31 @@ def calculate_metric_low_energy(data):
     return metrics_low_energy
 
 
+# Function to assign beam or scattered track based on y-position
+def assign_beam_or_scattered(data_points, incoming_labels, beam_zone_min=VolumeBoundaries.BEAM_ZONE_MIN.value, beam_zone_max=VolumeBoundaries.BEAM_ZONE_MAX.value):
+    label_count = defaultdict(lambda: {"beam": 0, "scattered": 0})
+
+    # Count points for each label in or outside the beam zone
+    for idx, (label, (x, y, z, Qvox)) in enumerate(zip(incoming_labels, data_points)):
+        if beam_zone_min <= y <= beam_zone_max:
+            label_count[label]["beam"] += 1
+        else:
+            label_count[label]["scattered"] += 1
+
+    # Create a list of updated labels based on beam zone presence
+    updated_labels = []
+    for label in incoming_labels:
+        # Calculate the number of points inside the beam zone for the current label
+        total_points = label_count[label]["beam"] + label_count[label]["scattered"]
+        beam_percentage = label_count[label]["beam"] / total_points if total_points > 0 else 0
+
+        # If more than 50% of the points for the label are inside the beam zone, assign it as beam (1)
+        if beam_percentage > 0.5:
+            updated_labels.append(1)  # Beam
+        else:
+            updated_labels.append(2)  # Scattered track
+
+    return updated_labels
 
 
 #######################################
@@ -1379,24 +1408,29 @@ for energy in excitation_energies:
                     # Get Input array and Visualize it
                     # data_array = [x, y, z, q]
                     if plots:
-                        data_array, colorbars = get_data_array(beam_center, entries, event_info)
+                        data_array, incoming_labels, colorbars = get_data_array(beam_center, entries, event_info)
                         if debug:
                             print('Data recorded in event')
                             print(data_array)
                     else:
-                        data_array = get_data_array(beam_center, entries, event_info)
+                        data_array, incoming_labels = get_data_array(beam_center, entries, event_info)
                         if debug:
                             print('Data recorded in event')
                             print(data_array)
 
+                    # Assign True Labels based on trackID from simulation
+                    true_labels_sim = assign_beam_or_scattered(data_array, incoming_labels)
+                    data_array = np.column_stack((data_array, incoming_labels))
+                    data_array = np.column_stack((data_array, true_labels_sim))
+
                     # Assign True Labels
-                    # data_array = [x,y,z,q,true labels]
+                    # data_array = [x,y,z,q,track_ID, true_labels_sim, true_labels_hard ]
                     data_array = generate_true_labels(data_array, event_info)
                     if debug:
                         print(data_array)
 
                     # Get Predicted Labels from RANSAC
-                    # data_array = [0-x,1-y,2-z,3-q,4-true labels, 5-ransac labels]
+                    # data_array = [0-x,1-y,2-z,3-q,4-track_ID, 5-true_labels_sim, 6-true_labels_hard, 7-ransac labels]
                     ransac_labels, fitted_models = find_multiple_lines_ransac(data_array, max_lines=10, residual_threshold=5.0, n_iterations=1000)
                     data_array = np.column_stack((data_array, ransac_labels))
                     ransac['components'] = len(np.unique(ransac_labels))
@@ -1405,7 +1439,7 @@ for energy in excitation_energies:
                         colorbars_ransac = plot_ransac(data_array, event_info)
 
                     #Get Prediced Labels from GMM
-                    # data_array = [0-x,1-y,2-z,3-q, 4-true labels, 5-ransac labels, 6-gmm labels, 7-dbscan labels, 8 - merge labels]
+                    # data_array = [0-x,1-y,2-z,3-q,4-track_ID, 5-true_labels_sim, 6-true_labels_hard, 7-ransac labels, 8-gmm labels, 9-dbscan labels, 10 - merge labels]
                     gmm_labels, n_comp, responsibilities, dbscan_labels = hierarchical_clustering_with_responsibilities(data_array, max_components=10)
 
                     data_array = np.column_stack((data_array, gmm_labels))
@@ -1417,8 +1451,7 @@ for energy in excitation_energies:
 
 
                     # Create Filters to the tracks
-                    # data_array = [0-x,1-y,2-z,3-q, 4-true labels, 5-ransac labels, 6-gmm labels, 7-dbscan labels, 8 - merge labels]
-                    # data_array = [9-scattered track, 10-track inside volume, 11-vertex inside volume, 12- side of track, 13-closest track, 14 - end point above beam zone]
+                    # data_array = [0-x,1-y,2-z,3-q,4-track_ID, 5-true_labels_sim, 6-true_labels_hard, 7-ransac labels, 8-gmm labels, 9-dbscan labels, 10 - merge labels]
                     data_array = add_filters(data_array, model= int(DataArray.merge_p_val.value))
 
                     scattered_condition = data_array[:, DataArray.scattered_track.value] == 1
@@ -1500,8 +1533,8 @@ for energy in excitation_energies:
                     gmm['beam_components'] = unique_beam_gmm
                     gmm['track_components'] = unique_track_gmm
 
-                    ransac['ari'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels.value], data_array[:, DataArray.ransac_labels.value]), 2)
-                    gmm['ari'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels.value], data_array[:, DataArray.gmm_labels.value]), 2)
+                    ransac['ari'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels_sim.value], data_array[:, DataArray.ransac_labels.value]), 2)
+                    gmm['ari'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels_sim.value], data_array[:, DataArray.gmm_labels.value]), 2)
 
                     # Append to the list of named tuples
                     event_info = event_info._replace(ransac=ransac)

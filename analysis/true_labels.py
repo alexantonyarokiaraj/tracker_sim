@@ -33,6 +33,7 @@ from sklearn.cluster import DBSCAN
 from kneed import KneeLocator
 from tracker_new.libraries import DataArray
 np.random.seed(42)
+from collections import defaultdict
 
 #######################################
 # Input arguments
@@ -76,12 +77,12 @@ NB_ASAD = 4
 NB_AGET = 4
 NB_CHANNEL = 68
 beam_entrance_time = 8.96  # units [ns]
-beam_center_time = 9980.0 - beam_entrance_time  # units[ns], 7076.0
+beam_center_time = 10970.0 - beam_entrance_time  # units[ns], 7076.0
 beam_center_peak_find_low = 8000  # units[ns]
 beam_center_peak_find_high = 14000  # units[ns]
 sig_beam_center = 70.0  # units [ns]
 time_per_sample = 0.08  # units [us]
-drift_velocity_volume = 1.28  # units [cm/us]
+drift_velocity_volume = 1.16  # units [cm/us]
 table = np.loadtxt("/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/LT_GANIL_NewCF_marine.dat")
 z_conversion_factor = drift_velocity_volume*(10.0/1000.0)
 x_conversion_factor = 2.0  # units[mm]
@@ -1309,7 +1310,30 @@ def calculate_metric_low_energy(data):
     return metrics_low_energy
 
 
+def assign_beam_or_scattered(data_points, incoming_labels, beam_zone_min=VolumeBoundaries.BEAM_ZONE_MIN, beam_zone_max=VolumeBoundaries.BEAM_ZONE_MAX):
+    label_count = defaultdict(lambda: {"beam": 0, "scattered": 0})
 
+    # Count points for each label in or outside the beam zone
+    for idx, (label, (x, y, z, Qvox)) in enumerate(zip(incoming_labels, data_points)):
+        if VolumeBoundaries.BEAM_ZONE_MIN.value <= y <= VolumeBoundaries.BEAM_ZONE_MAX.value:
+            label_count[label]["beam"] += 1
+        else:
+            label_count[label]["scattered"] += 1
+
+    # Create a list of updated labels based on beam zone presence
+    updated_labels = []
+    for label in incoming_labels:
+        # Calculate the number of points inside the beam zone for the current label
+        total_points = label_count[label]["beam"] + label_count[label]["scattered"]
+        beam_percentage = label_count[label]["beam"] / total_points if total_points > 0 else 0
+
+        # If more than 50% of the points for the label are inside the beam zone, assign it as beam (1)
+        if beam_percentage > 0.5:
+            updated_labels.append(1)  # Beam
+        else:
+            updated_labels.append(2)  # Scattered track
+
+    return updated_labels
 
 #######################################
 # Main Function
@@ -1374,15 +1398,8 @@ for energy in excitation_energies:
                                     data_points.append([posX, posY, posZ, Qvox])
                                     incoming_labels.append(entries.data.CoboAsad[int(x)].trackID[int(y)])
                     data = np.array(data_points)
-                    unique_labels = np.unique(incoming_labels)
-
-                    # Create a mapping from unique labels to sequential numbers starting from 1
-                    label_mapping = {label: idx + 1 for idx, label in enumerate(unique_labels)}
-
-                    # Replace each label in incoming_labels using the mapping
-                    sequential_labels = [label_mapping[label] for label in incoming_labels]
-
-                    print("Original Labels:", np.unique(incoming_labels))
-                    print("Sequential Labels:", np.unique(sequential_labels))
+                    # Assign beam or scattered track based on the logic
+                    updated_labels = assign_beam_or_scattered(data, incoming_labels)
+                    print("Updated Labels:", updated_labels)
             except:
                 print("Exception occured")
