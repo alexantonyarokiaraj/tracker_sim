@@ -37,6 +37,7 @@ from kneed import KneeLocator
 from regularize import Regularize
 from libraries import DataArray
 from collections import defaultdict
+import warnings
 
 np.random.seed(42)
 
@@ -52,7 +53,7 @@ split_strings = input_string.split('@')
 excitation_energies=[split_strings[0]]
 cm_angles=[split_strings[1]]
 path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/DATA/simulation/5000/"
-plots = True
+plots = False
 sim = True
 debug=False
 final_plots_flag = False
@@ -60,8 +61,8 @@ event_start = int(split_strings[2])
 event_end = int(split_strings[3])
 save_final_data=False
 with_missing_pads = True
-batch_mode = False
-save_to_root = False
+batch_mode = True
+save_to_root = True
 save_python_figures = False
 
 np.set_printoptions(threshold=np.inf)
@@ -459,7 +460,7 @@ def get_data_array(beam_center, entries, event_info):
 # Function to plot true labels
 def generate_true_labels(data_array, event_info):
     y_values = data_array[:, DataArray.Y.value]
-    labels = np.where((y_values >= beam_zone_low) & (y_values < beam_zone_high), 0, 1)
+    labels = np.where((y_values >= VolumeBoundaries.BEAM_ZONE_MIN.value) & (y_values < VolumeBoundaries.BEAM_ZONE_MAX.value), 0, 1)
     data_array = np.column_stack((data_array, labels))
     if plots:
         cmap = plt.cm.get_cmap("Dark2", len(np.unique(labels)))
@@ -557,6 +558,7 @@ def return_threshold_lines(start_point, direction_vector):
 
 # Function to plot the kinematics of RANSAC Clusters
 def kinematics_ransac(data, fitted_models, useLineModelND):
+    data = add_filters(data, model= int(DataArray.ransac_labels.value))
     # Define the beam line endpoints
     data = data[data[:, DataArray.ransac_labels.value] != 20]
     lab_angles_initial = {}
@@ -693,6 +695,9 @@ def fit_gmm_with_bic(data, max_components=10):
     best_n_components = 1
 
     for n_components in range(1, max_components + 1):
+        n_samples = features.shape[0]
+        if n_components > features.shape[0]:
+            break  # Exit loop early if n_components exceeds n_samples
         gmm = GaussianMixture(n_components=n_components, covariance_type='full', random_state=42)
         gmm.fit(features)
         bic = gmm.bic(features)
@@ -711,7 +716,7 @@ def fit_gmm_with_bic(data, max_components=10):
 
 # Function to plot the GMM assigned clusters
 def plot_gmm(data_array, event_info):
-    labels = data_array[:, DataArray.merge_cdist.value]
+    labels = data_array[:, DataArray.merge_p_val.value]
     cmap = plt.cm.get_cmap("Dark2", len(np.unique(labels)))
     update_clear(ax11)
     update_clear(ax12)
@@ -812,11 +817,11 @@ def kinematics_gmm(data, responsibilities, event_info):
             labels_for_current_label = data[:, DataArray.merge_p_val.value] == label
             not_belonging_to_label = ~labels_for_current_label
             inside_beam_zone_not_label = beam_zone_mask & not_belonging_to_label
-            res = np.concatenate([range_1, range_2, range_3, range_4, range_5, range_6, range_7])
+            # res = np.concatenate([range_1, range_2, range_3, range_4, range_5, range_6, range_7])
             gmm_indices = np.where(data[:, DataArray.merge_p_val.value] == label)[0]
             gmm_labels_raw = np.unique(data[gmm_indices, 6])
             gmm_labels_raw = np.array(gmm_labels_raw, dtype=int)
-            # res = [0.1]
+            res = [0.1]
             if cluster_data[mask, :3].size > 0:
                 for res_threshold in res:
                     responsibility_threshold = res_threshold
@@ -980,8 +985,29 @@ def start_end_points(pca_points, beam_mean, dirVecBeam):
 
 # Function to plot the kinematics of GMM Clusters
 def get_directions(data, beam_start=np.array([0, 128, 128]), beam_end=np.array([256, 128, 128])):
-    pca = PCA(n_components=1)
-    pca.fit(data)
+
+    # non_constant_features = data
+
+    if np.any(np.std(data, axis=0) == 0):
+        print("Warning: Constant features detected.")
+        # non_constant_features = data[:, np.std(data, axis=0) > 0]
+
+    if len(np.unique(data, axis=0)) < len(data):
+        print("Warning: Duplicate rows detected.")
+
+    if np.any(np.isnan(data)) or np.any(np.isinf(data)):
+        print("Warning: Data contains NaN or inf values.")
+
+
+    # Catch the specific warning related to constant features in PCA
+    with warnings.catch_warnings():
+
+        warnings.simplefilter("ignore", category=RuntimeWarning)
+
+        # Apply PCA with 1 component
+        pca = PCA(n_components=1)
+        pca.fit(data)
+
     dirVecTrack = pca.components_[0]
     dirVecTrackNorm = dirVecTrack / np.linalg.norm(dirVecTrack)
     track_mean = pca.mean_
@@ -1358,8 +1384,8 @@ for energy in excitation_energies:
         print('Reading', entry ,'entries from file', filename)
 
         if save_to_root:
-            path_output = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/"
-            root_file = root.TFile(path_output+"recon_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".root", "UPDATE")
+            path_output = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/reg_resp/"
+            root_file = root.TFile(path_output+"metrics_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".root", "UPDATE")
             print(root_file)
             result = create_tree_and_branches("events")
 
@@ -1449,10 +1475,19 @@ for energy in excitation_energies:
                     data_array = np.column_stack((data_array, final_clusters))
                     data_array = np.column_stack((data_array, final_clusters))
 
+                    angles_ransac, intersections_ransac, start_point_ransac, end_point_ransac, phi_angle_ransac = kinematics_ransac(data_array, fitted_models, False)
+                    print('RANSAC angles', angles_ransac)
+                    ransac['angles'] = angles_ransac
+                    ransac['intersections'] = intersections_ransac
+                    ransac['start_point'] = start_point_ransac
+                    ransac['end_point'] = end_point_ransac
+                    ransac['phi_angles'] = phi_angle_ransac
 
                     # Create Filters to the tracks
                     # data_array = [0-x,1-y,2-z,3-q,4-track_ID, 5-true_labels_sim, 6-true_labels_hard, 7-ransac labels, 8-gmm labels, 9-dbscan labels, 10 - merge labels]
                     data_array = add_filters(data_array, model= int(DataArray.merge_p_val.value))
+                    np.set_printoptions(threshold=np.inf)
+
 
                     scattered_condition = data_array[:, DataArray.scattered_track.value] == 1
                     scattered_above_mask = data_array[:, DataArray.side_of_track.value] == 1
@@ -1467,14 +1502,14 @@ for energy in excitation_energies:
                     highest_label = max(final_clusters)
                     data_array_above = data_array[scattered_above, :]
                     if data_array_above.size > 0:
-                        reg_low_energy_above = Regularize(data_array=data_array_above, low_energy_threshold=5, merge_type='cdist', func=get_directions)
+                        reg_low_energy_above = Regularize(data_array=data_array_above, low_energy_threshold=10, merge_type='cdist', func=get_directions)
                         final_clusters_above = reg_low_energy_above.merge_labels()
                         final_clusters_above += highest_label
                         highest_label = max(final_clusters_above)
                         data_array[scattered_above, DataArray.merge_cdist.value] = final_clusters_above
                     data_array_below = data_array[scattered_below, :]
                     if data_array_below.size > 0:
-                        reg_low_energy_below = Regularize(data_array=data_array_below, low_energy_threshold=5, merge_type='cdist', func=get_directions)
+                        reg_low_energy_below = Regularize(data_array=data_array_below, low_energy_threshold=10, merge_type='cdist', func=get_directions)
                         final_clusters_below = reg_low_energy_below.merge_labels()
                         final_clusters_below += highest_label
                         data_array[scattered_below, DataArray.merge_cdist.value] = final_clusters_below
@@ -1484,13 +1519,6 @@ for energy in excitation_energies:
                     if plots:
                         colorbars_gmm = plot_gmm(data_array, event_info)
 
-                    angles_ransac, intersections_ransac, start_point_ransac, end_point_ransac, phi_angle_ransac = kinematics_ransac(data_array, fitted_models, False)
-                    print('RANSAC angles', angles_ransac)
-                    ransac['angles'] = angles_ransac
-                    ransac['intersections'] = intersections_ransac
-                    ransac['start_point'] = start_point_ransac
-                    ransac['end_point'] = end_point_ransac
-                    ransac['phi_angles'] = phi_angle_ransac
 
                     angles_gmm, intersections_gmm, angles_minimize_gmm, start_point_gmm, end_point_gmm, closest_resp, closest_angle, phi_angle_gmm, data_with_filters = kinematics_gmm(data_array, responsibilities, event_info)
 
@@ -1504,8 +1532,9 @@ for energy in excitation_energies:
                     gmm['min_angle'] = closest_angle
                     gmm['phi_angles'] = phi_angle_gmm
 
-                    print('Printing the metric')
-                    print(metric_low_energy)
+                    # print('Printing the metric')
+                    # print(metric_low_energy)
+                    gmm['track_dist_metric'] = metric_low_energy
 
                     # print('GMM intersections', intersections_gmm)
                     # print('minimize', angles_minimize_gmm)
@@ -1535,6 +1564,10 @@ for energy in excitation_energies:
 
                     ransac['ari'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels_sim.value], data_array[:, DataArray.ransac_labels.value]), 2)
                     gmm['ari'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels_sim.value], data_array[:, DataArray.gmm_labels.value]), 2)
+                    gmm['ari_pval'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels_sim.value], data_array[:, DataArray.merge_p_val.value]), 2)
+                    gmm['ari_cdist'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels_sim.value], data_array[:, DataArray.merge_cdist.value]), 2)
+
+                    # print("ARI Indices", ransac['ari'], gmm['ari'], gmm['ari_pval'], gmm['ari_cdist'])
 
                     # Append to the list of named tuples
                     event_info = event_info._replace(ransac=ransac)

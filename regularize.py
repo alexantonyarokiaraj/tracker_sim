@@ -187,7 +187,13 @@ class Regularize:
 
         xyz_data = self.data[:, DataArray.X.value:DataArray.Z.value + 1]
 
-        clusters = self.data[:, DataArray.gmm_labels.value].astype(int)
+        if self.merge_type == 'p_value':
+            # print('pval merge')
+            clusters = self.data[:, DataArray.gmm_labels.value].astype(int)
+        if self.merge_type == 'cdist':
+            # print('dist merge')
+            clusters = self.data[:, DataArray.merge_p_val.value].astype(int)
+
         unique_clusters = np.unique(clusters)
 
 

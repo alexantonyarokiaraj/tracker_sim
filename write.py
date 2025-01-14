@@ -42,6 +42,7 @@ def create_tree_and_branches(tree_name):
     gmm_bb_metric = ROOT.std.vector("float")()
     gmm_bt_metric = ROOT.std.vector("float")()
     gmm_tt_metric = ROOT.std.vector("float")()
+    gmm_td_metric = ROOT.std.vector("float")()
 
     # Create branches for each variable
     tree.Branch("eventid", eventid)
@@ -78,6 +79,7 @@ def create_tree_and_branches(tree_name):
     tree.Branch("gmm_bb_metric", gmm_bb_metric)
     tree.Branch("gmm_bt_metric", gmm_bt_metric)
     tree.Branch("gmm_tt_metric", gmm_tt_metric)
+    tree.Branch("gmm_td_metric", gmm_td_metric)
 
     return {
         "tree": tree,
@@ -114,7 +116,8 @@ def create_tree_and_branches(tree_name):
         "gmm_min_angle": gmm_min_angle,
         "gmm_bb_metric": gmm_bb_metric,
         "gmm_tt_metric": gmm_tt_metric,
-        "gmm_bt_metric": gmm_bt_metric
+        "gmm_bt_metric": gmm_bt_metric,
+        "gmm_td_metric": gmm_td_metric
     }
 
 # Function to fill event data into the tree
@@ -155,7 +158,7 @@ def fill_event_data_to_tree(result, event_data):
     gmm_bb_metric = result["gmm_bb_metric"]
     gmm_bt_metric = result["gmm_bt_metric"]
     gmm_tt_metric = result["gmm_tt_metric"]
-
+    gmm_td_metric = result["gmm_td_metric"]
 
     eventid.clear()
     verX.clear()
@@ -191,6 +194,7 @@ def fill_event_data_to_tree(result, event_data):
     gmm_bb_metric.clear()
     gmm_bt_metric.clear()
     gmm_tt_metric.clear()
+    gmm_td_metric.clear()
 
     tree = result["tree"]
 
@@ -270,6 +274,9 @@ def fill_event_data_to_tree(result, event_data):
 
     for metric in event_data.gmm["beam_track_metric"].values():
         gmm_bt_metric.push_back(metric)
+
+    for metric in event_data.gmm["track_dist_metric"].values():
+        gmm_td_metric.push_back(metric)
 
     # Fill the tree with the data
     tree.Fill()

@@ -1,15 +1,19 @@
 #!/bin/bash
 export OPENBLAS_NUM_THREADS=1  # Limits OpenBLAS threads to 1 per process
 
-# Define the total number of events and chunk size
-total_events=5000
-num_cores=20
-chunk_size=$((total_events / num_cores))
+#!/bin/bash
 
-# Generate and execute the commands with parallel
-for ((i=0; i<num_cores; i++)); do
-    start=$((i * chunk_size))
-    end=$((start + chunk_size - 1))
+# Generate combinations of ex and cm
+ex_values=(5)
+cm_values=(1 2 3 4 5)
 
-    echo "python3 tracks.py 5@3@$start@$end"
-done | parallel -u
+# Generate input lines for parallel
+for ex in "${ex_values[@]}"; do
+  for cm in "${cm_values[@]}"; do
+    echo "$ex@$cm@1@5000"
+  done
+done > schedule_5.txt
+
+# Run parallel with the generated combinations
+# cat input_combinations.txt | parallel -u python3 tracks.py {}
+

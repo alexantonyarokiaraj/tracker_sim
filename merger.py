@@ -1,11 +1,12 @@
 import numpy as np
 from scipy.spatial.distance import mahalanobis
 from scipy.stats import chi2
+from libraries import DataArray
 
 def calculate_cluster_metrics(data_array, beam_zone_low, beam_zone_high):
     # Separate columns for easy access
-    x, y, z = data_array[:, 0], data_array[:, 1], data_array[:, 2]
-    charges, true_labels, ransac_labels, gmm_labels = data_array[:, 3], data_array[:, 4], data_array[:, 5], data_array[:, 6]
+    x, y, z = data_array[:, DataArray.X.value], data_array[:, DataArray.Y.value], data_array[:, DataArray.Z.value]
+    charges, true_labels, ransac_labels, gmm_labels = data_array[:, DataArray.Q.value], data_array[:, DataArray.true_labels_sim.value], data_array[:, DataArray.ransac_labels.value], data_array[:, DataArray.gmm_labels.value]
 
     # Group points by GMM labels
     unique_gmm_labels = np.unique(gmm_labels)
