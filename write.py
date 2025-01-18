@@ -21,6 +21,7 @@ def create_tree_and_branches(tree_name):
     ransac_beam_comp = ROOT.std.vector("int")()
     ransac_track_comp = ROOT.std.vector("int")()
     ransac_ari = ROOT.std.vector("float")()
+    ransac_filtered_ari = ROOT.std.vector("float")()
     ransac_angles = ROOT.std.vector("float")()
     ransac_phi_angles = ROOT.std.vector("float")()
     ransac_inter = ROOT.std.vector("float")()
@@ -30,6 +31,11 @@ def create_tree_and_branches(tree_name):
     gmm_beam_comp = ROOT.std.vector("int")()
     gmm_track_comp = ROOT.std.vector("int")()
     gmm_ari = ROOT.std.vector("float")()
+    gmm_filtered_ari = ROOT.std.vector("float")()
+    gmm_ari_pval = ROOT.std.vector("float")()
+    gmm_filtered_ari_pval = ROOT.std.vector("float")()
+    gmm_ari_cdist = ROOT.std.vector("float")()
+    gmm_filtered_ari_cdist = ROOT.std.vector("float")()
     gmm_angles = ROOT.std.vector("float")()
     gmm_phi_angles = ROOT.std.vector("float")()
     gmm_inter = ROOT.std.vector("float")()
@@ -58,6 +64,7 @@ def create_tree_and_branches(tree_name):
     tree.Branch("ransac_beam_comp", ransac_beam_comp)
     tree.Branch("ransac_track_comp", ransac_track_comp)
     tree.Branch("ransac_ari", ransac_ari)
+    tree.Branch("ransac_filtered_ari", ransac_filtered_ari)
     tree.Branch("ransac_angles", ransac_angles)
     tree.Branch("ransac_phi_angles", ransac_phi_angles)
     tree.Branch("ransac_inter", ransac_inter)
@@ -67,6 +74,11 @@ def create_tree_and_branches(tree_name):
     tree.Branch("gmm_beam_comp", gmm_beam_comp)
     tree.Branch("gmm_track_comp", gmm_track_comp)
     tree.Branch("gmm_ari", gmm_ari)
+    tree.Branch("gmm_filtered_ari", gmm_filtered_ari)
+    tree.Branch("gmm_ari_pval", gmm_ari_pval)
+    tree.Branch("gmm_filtered_ari_pval", gmm_filtered_ari_pval)
+    tree.Branch("gmm_ari_cdist", gmm_ari_cdist)
+    tree.Branch("gmm_filtered_ari_cdist", gmm_filtered_ari_cdist)
     tree.Branch("gmm_angles", gmm_angles)
     tree.Branch("gmm_phi_angles", gmm_phi_angles)
     tree.Branch("gmm_inter", gmm_inter)
@@ -96,6 +108,7 @@ def create_tree_and_branches(tree_name):
         "ransac_beam_comp": ransac_beam_comp,
         "ransac_track_comp": ransac_track_comp,
         "ransac_ari": ransac_ari,
+        "ransac_filtered_ari": ransac_filtered_ari,
         "ransac_angles": ransac_angles,
         "ransac_phi_angles": ransac_phi_angles,
         "ransac_inter": ransac_inter,
@@ -105,6 +118,11 @@ def create_tree_and_branches(tree_name):
         "gmm_beam_comp": gmm_beam_comp,
         "gmm_track_comp": gmm_track_comp,
         "gmm_ari": gmm_ari,
+        "gmm_filtered_ari": gmm_filtered_ari,
+        "gmm_ari_pval": gmm_ari_pval,
+        "gmm_filtered_ari_pval": gmm_filtered_ari_pval,
+        "gmm_ari_cdist": gmm_ari_cdist,
+        "gmm_filtered_ari_cdist": gmm_filtered_ari_cdist,
         "gmm_angles": gmm_angles,
         "gmm_phi_angles": gmm_phi_angles,
         "gmm_inter": gmm_inter,
@@ -137,6 +155,7 @@ def fill_event_data_to_tree(result, event_data):
     ransac_beam_comp = result["ransac_beam_comp"]
     ransac_track_comp = result["ransac_track_comp"]
     ransac_ari = result["ransac_ari"]
+    ransac_filtered_ari = result["ransac_filtered_ari"]
     ransac_angles = result["ransac_angles"]
     ransac_phi_angles = result["ransac_phi_angles"]
     ransac_inter = result["ransac_inter"]
@@ -146,6 +165,11 @@ def fill_event_data_to_tree(result, event_data):
     gmm_beam_comp = result["gmm_beam_comp"]
     gmm_track_comp = result["gmm_track_comp"]
     gmm_ari = result["gmm_ari"]
+    gmm_filtered_ari = result["gmm_filtered_ari"]
+    gmm_ari_pval = result["gmm_ari_pval"]
+    gmm_filtered_ari_pval = result["gmm_filtered_ari_pval"]
+    gmm_ari_cdist = result["gmm_ari_cdist"]
+    gmm_filtered_ari_cdist = result["gmm_filtered_ari_cdist"]
     gmm_angles = result["gmm_angles"]
     gmm_phi_angles = result["gmm_phi_angles"]
     gmm_inter = result["gmm_inter"]
@@ -173,6 +197,7 @@ def fill_event_data_to_tree(result, event_data):
     ransac_beam_comp.clear()
     ransac_track_comp.clear()
     ransac_ari.clear()
+    ransac_filtered_ari.clear()
     ransac_angles.clear()
     ransac_phi_angles.clear()
     ransac_inter.clear()
@@ -182,6 +207,11 @@ def fill_event_data_to_tree(result, event_data):
     gmm_beam_comp.clear()
     gmm_track_comp.clear()
     gmm_ari.clear()
+    gmm_filtered_ari.clear()
+    gmm_ari_pval.clear()
+    gmm_filtered_ari_pval.clear()
+    gmm_ari_cdist.clear()
+    gmm_filtered_ari_cdist.clear()
     gmm_angles.clear()
     gmm_phi_angles.clear()
     gmm_inter.clear()
@@ -212,10 +242,16 @@ def fill_event_data_to_tree(result, event_data):
     ransac_beam_comp.push_back(event_data.ransac["beam_components"])
     ransac_track_comp.push_back(event_data.ransac["track_components"])
     ransac_ari.push_back(event_data.ransac["ari"])
+    ransac_filtered_ari.push_back(event_data.ransac["filtered_ari"])
     gmm_comp.push_back(event_data.gmm["components"])
     gmm_beam_comp.push_back(event_data.gmm["beam_components"])
     gmm_track_comp.push_back(event_data.gmm["track_components"])
     gmm_ari.push_back(event_data.gmm["ari"])
+    gmm_filtered_ari.push_back(event_data.gmm["filtered_ari"])
+    gmm_ari_pval.push_back(event_data.gmm["ari_pval"])
+    gmm_filtered_ari_pval.push_back(event_data.gmm["filtered_ari_pval"])
+    gmm_ari_cdist.push_back(event_data.gmm["ari_cdist"])
+    gmm_filtered_ari_cdist.push_back(event_data.gmm["filtered_ari_cdist"])
 
 
     # Iterate and Fill

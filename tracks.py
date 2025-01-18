@@ -716,7 +716,7 @@ def fit_gmm_with_bic(data, max_components=10):
 
 # Function to plot the GMM assigned clusters
 def plot_gmm(data_array, event_info):
-    labels = data_array[:, DataArray.merge_p_val.value]
+    labels = data_array[:, DataArray.gmm_labels.value]
     cmap = plt.cm.get_cmap("Dark2", len(np.unique(labels)))
     update_clear(ax11)
     update_clear(ax12)
@@ -1384,8 +1384,8 @@ for energy in excitation_energies:
         print('Reading', entry ,'entries from file', filename)
 
         if save_to_root:
-            path_output = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/reg_resp/"
-            root_file = root.TFile(path_output+"metrics_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".root", "UPDATE")
+            path_output = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/ari/"
+            root_file = root.TFile(path_output+"ari_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".root", "UPDATE")
             print(root_file)
             result = create_tree_and_branches("events")
 
@@ -1502,14 +1502,14 @@ for energy in excitation_energies:
                     highest_label = max(final_clusters)
                     data_array_above = data_array[scattered_above, :]
                     if data_array_above.size > 0:
-                        reg_low_energy_above = Regularize(data_array=data_array_above, low_energy_threshold=10, merge_type='cdist', func=get_directions)
+                        reg_low_energy_above = Regularize(data_array=data_array_above, low_energy_threshold=15, merge_type='cdist', func=get_directions)
                         final_clusters_above = reg_low_energy_above.merge_labels()
                         final_clusters_above += highest_label
                         highest_label = max(final_clusters_above)
                         data_array[scattered_above, DataArray.merge_cdist.value] = final_clusters_above
                     data_array_below = data_array[scattered_below, :]
                     if data_array_below.size > 0:
-                        reg_low_energy_below = Regularize(data_array=data_array_below, low_energy_threshold=10, merge_type='cdist', func=get_directions)
+                        reg_low_energy_below = Regularize(data_array=data_array_below, low_energy_threshold=15, merge_type='cdist', func=get_directions)
                         final_clusters_below = reg_low_energy_below.merge_labels()
                         final_clusters_below += highest_label
                         data_array[scattered_below, DataArray.merge_cdist.value] = final_clusters_below
@@ -1562,12 +1562,29 @@ for energy in excitation_energies:
                     gmm['beam_components'] = unique_beam_gmm
                     gmm['track_components'] = unique_track_gmm
 
-                    ransac['ari'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels_sim.value], data_array[:, DataArray.ransac_labels.value]), 2)
-                    gmm['ari'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels_sim.value], data_array[:, DataArray.gmm_labels.value]), 2)
-                    gmm['ari_pval'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels_sim.value], data_array[:, DataArray.merge_p_val.value]), 2)
-                    gmm['ari_cdist'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels_sim.value], data_array[:, DataArray.merge_cdist.value]), 2)
 
-                    # print("ARI Indices", ransac['ari'], gmm['ari'], gmm['ari_pval'], gmm['ari_cdist'])
+                    ransac_noise_mask = data_array[:, DataArray.ransac_labels.value] != 20  # Exclude points with label 20
+                    gmm_noise_mask = data_array[:, DataArray.gmm_labels.value] != -1  # Exclude points with -1
+
+                    ransac['ari'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels_sim.value], data_array[:, DataArray.ransac_labels.value]), 2)
+                    ransac['filtered_ari'] = round(adjusted_rand_score(data_array[ransac_noise_mask, DataArray.true_labels_sim.value], data_array[ransac_noise_mask, DataArray.ransac_labels.value]), 2)
+                    gmm['ari'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels_sim.value], data_array[:, DataArray.gmm_labels.value]), 2)
+                    gmm['filtered_ari'] = round(adjusted_rand_score(data_array[gmm_noise_mask, DataArray.true_labels_sim.value], data_array[gmm_noise_mask, DataArray.gmm_labels.value]), 2)
+                    gmm['ari_pval'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels_sim.value], data_array[:, DataArray.merge_p_val.value]), 2)
+                    gmm['filtered_ari_pval'] = round(adjusted_rand_score(data_array[gmm_noise_mask, DataArray.true_labels_sim.value], data_array[gmm_noise_mask, DataArray.merge_p_val.value]), 2)
+                    gmm['ari_cdist'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels_sim.value], data_array[:, DataArray.merge_cdist.value]), 2)
+                    gmm['filtered_ari_cdist'] = round(adjusted_rand_score(data_array[gmm_noise_mask, DataArray.true_labels_sim.value], data_array[gmm_noise_mask, DataArray.merge_cdist.value]), 2)
+
+
+
+                    print("ARI Indices", ransac['ari'], ransac['filtered_ari'], gmm['ari'], gmm['filtered_ari'], gmm['ari_pval'], gmm['filtered_ari_pval'], gmm['ari_cdist'], gmm['filtered_ari_cdist'])
+                    # print(np.unique(data_array[:, DataArray.true_labels_sim.value]), np.unique(data_array[:, DataArray.ransac_labels.value]), np.unique(data_array[:, DataArray.gmm_labels.value]), np.unique(data_array[:, DataArray.merge_p_val.value]))
+                    # print(len(data_array[data_array[:, DataArray.true_labels_sim.value] == 1]))
+                    # print(len(data_array[data_array[:, DataArray.ransac_labels.value] == 1]))
+                    # print(len(data_array[data_array[:, DataArray.ransac_labels.value] == 20]))
+                    # print(len(data_array[data_array[:, DataArray.gmm_labels.value] == 0]))
+                    # print(len(data_array[data_array[:, DataArray.gmm_labels.value] == 1]))
+                    # print(len(data_array[data_array[:, DataArray.merge_p_val.value] == 1]))
 
                     # Append to the list of named tuples
                     event_info = event_info._replace(ransac=ransac)
