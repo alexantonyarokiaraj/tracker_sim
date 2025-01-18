@@ -62,7 +62,7 @@ event_end = int(split_strings[3])
 save_final_data=False
 with_missing_pads = True
 batch_mode = True
-save_to_root = True
+save_to_root = False
 save_python_figures = False
 
 np.set_printoptions(threshold=np.inf)
@@ -1384,7 +1384,7 @@ for energy in excitation_energies:
         print('Reading', entry ,'entries from file', filename)
 
         if save_to_root:
-            path_output = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/ari/"
+            path_output = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/test/"
             root_file = root.TFile(path_output+"ari_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".root", "UPDATE")
             print(root_file)
             result = create_tree_and_branches("events")
@@ -1625,6 +1625,9 @@ for energy in excitation_energies:
             print('Saving to ROOT File')
             result["tree"].Write()
             root_file.Close()
+            exceptions_output_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/exceptions/"
+            exceptions_output_file = path_output+"exc_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".npy"
+            np.save(exceptions_output_file, np.array(exception_events))
         # Define histogram parameters
         if plots:
             # print('Close Figure')
