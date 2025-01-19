@@ -1496,8 +1496,8 @@ for energy in excitation_energies:
                     scattered_above = scattered_condition & scattered_above_mask
                     scattered_below = scattered_condition & scattered_below_mask
 
-
-                    metric_low_energy = calculate_metric_low_energy(data_array)
+                    metric_low_energy = {}
+                    # metric_low_energy = calculate_metric_low_energy(data_array)
 
                     highest_label = max(final_clusters)
                     data_array_above = data_array[scattered_above, :]
@@ -1546,11 +1546,15 @@ for energy in excitation_energies:
                     # print(fitted_models)
 
                     # Function to calculate p values
-                    beam_metrics, track_metrics, beam_track_metrics = calculate_cluster_metrics(data_array, beam_zone_low, beam_zone_high)
+                    # beam_metrics, track_metrics, beam_track_metrics = calculate_cluster_metrics(data_array, beam_zone_low, beam_zone_high)
                     # print('Metrics')
                     # print(beam_metrics)
                     # print(track_metrics)
                     # print(beam_track_metrics)
+                    beam_metrics = {}
+                    track_metrics = {}
+                    beam_track_metrics = {}
+
                     gmm['beam_beam_metric'] = beam_metrics
                     gmm['track_track_metric'] = track_metrics
                     gmm['beam_track_metric'] = beam_track_metrics
