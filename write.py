@@ -49,6 +49,14 @@ def create_tree_and_branches(tree_name):
     gmm_bt_metric = ROOT.std.vector("float")()
     gmm_tt_metric = ROOT.std.vector("float")()
     gmm_td_metric = ROOT.std.vector("float")()
+    beta_ransac_tracks = ROOT.std.vector("float")()
+    beta_ransac_counts = ROOT.std.vector("float")()
+    beta_ransac = ROOT.std.vector("float")()
+    beta_ransac_angle = ROOT.std.vector("float")()
+    beta_gmm_tracks = ROOT.std.vector("float")()
+    beta_gmm_counts = ROOT.std.vector("float")()
+    beta_gmm = ROOT.std.vector("float")()
+    beta_gmm_angle = ROOT.std.vector("float")()
 
     # Create branches for each variable
     tree.Branch("eventid", eventid)
@@ -92,6 +100,14 @@ def create_tree_and_branches(tree_name):
     tree.Branch("gmm_bt_metric", gmm_bt_metric)
     tree.Branch("gmm_tt_metric", gmm_tt_metric)
     tree.Branch("gmm_td_metric", gmm_td_metric)
+    tree.Branch("beta_ransac_tracks", beta_ransac_tracks)
+    tree.Branch("beta_ransac_counts", beta_ransac_counts)
+    tree.Branch("beta_ransac", beta_ransac)
+    tree.Branch("beta_ransac_angle", beta_ransac_angle)
+    tree.Branch("beta_gmm_tracks", beta_gmm_tracks)
+    tree.Branch("beta_gmm_counts", beta_gmm_counts)
+    tree.Branch("beta_gmm", beta_gmm)
+    tree.Branch("beta_gmm_angle", beta_gmm_angle)
 
     return {
         "tree": tree,
@@ -135,7 +151,15 @@ def create_tree_and_branches(tree_name):
         "gmm_bb_metric": gmm_bb_metric,
         "gmm_tt_metric": gmm_tt_metric,
         "gmm_bt_metric": gmm_bt_metric,
-        "gmm_td_metric": gmm_td_metric
+        "gmm_td_metric": gmm_td_metric,
+        "beta_ransac_tracks": beta_ransac_tracks,
+        "beta_ransac_counts": beta_ransac_counts,
+        "beta_ransac": beta_ransac,
+        "beta_ransac_angle": beta_ransac_angle,
+        "beta_gmm_tracks": beta_gmm_tracks,
+        "beta_gmm_counts": beta_gmm_counts,
+        "beta_gmm": beta_gmm,
+        "beta_gmm_angle": beta_gmm_angle
     }
 
 # Function to fill event data into the tree
@@ -183,6 +207,15 @@ def fill_event_data_to_tree(result, event_data):
     gmm_bt_metric = result["gmm_bt_metric"]
     gmm_tt_metric = result["gmm_tt_metric"]
     gmm_td_metric = result["gmm_td_metric"]
+    beta_ransac_tracks = result["beta_ransac_tracks"]
+    beta_ransac_counts = result["beta_ransac_counts"]
+    beta_ransac = result["beta_ransac"]
+    beta_ransac_angle = result["beta_ransac_angle"]
+    beta_gmm_tracks = result["beta_gmm_tracks"]
+    beta_gmm_counts = result["beta_gmm_counts"]
+    beta_gmm = result["beta_gmm"]
+    beta_gmm_angle = result["beta_gmm_angle"]
+
 
     eventid.clear()
     verX.clear()
@@ -225,6 +258,14 @@ def fill_event_data_to_tree(result, event_data):
     gmm_bt_metric.clear()
     gmm_tt_metric.clear()
     gmm_td_metric.clear()
+    beta_ransac_tracks.clear()
+    beta_ransac_counts.clear()
+    beta_ransac.clear()
+    beta_ransac_angle.clear()
+    beta_gmm_tracks.clear()
+    beta_gmm_counts.clear()
+    beta_gmm.clear()
+    beta_gmm_angle.clear()
 
     tree = result["tree"]
 
@@ -313,6 +354,27 @@ def fill_event_data_to_tree(result, event_data):
 
     for metric in event_data.gmm["track_dist_metric"].values():
         gmm_td_metric.push_back(metric)
+
+    # Loop through the outer dictionary
+    for key1, sub_dict in event_data.ransac["beta"].items():
+        beta_ransac_tracks.push_back(key1)
+        beta_ransac_counts.push_back(len(sub_dict))
+
+        # Loop through the inner dictionary
+        for key2, value in sub_dict.items():
+            beta_ransac.push_back(key2)   # Store inner dictionary keys
+            beta_ransac_angle.push_back(value)  # Store inner dictionary values
+
+    # Loop through the outer dictionary
+    for key1, sub_dict in event_data.gmm["beta"].items():
+        beta_gmm_tracks.push_back(key1)
+        beta_gmm_counts.push_back(len(sub_dict))
+
+        # Loop through the inner dictionary
+        for key2, value in sub_dict.items():
+            beta_gmm.push_back(key2)   # Store inner dictionary keys
+            beta_gmm_angle.push_back(value)  # Store inner dictionary values
+
 
     # Fill the tree with the data
     tree.Fill()

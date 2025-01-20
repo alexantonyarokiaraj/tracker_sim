@@ -62,7 +62,7 @@ event_end = int(split_strings[3])
 save_final_data=False
 with_missing_pads = True
 batch_mode = True
-save_to_root = False
+save_to_root = True
 save_python_figures = False
 
 np.set_printoptions(threshold=np.inf)
@@ -716,7 +716,7 @@ def fit_gmm_with_bic(data, max_components=10):
 
 # Function to plot the GMM assigned clusters
 def plot_gmm(data_array, event_info):
-    labels = data_array[:, DataArray.gmm_labels.value]
+    labels = data_array[:, DataArray.merge_cdist.value]
     cmap = plt.cm.get_cmap("Dark2", len(np.unique(labels)))
     update_clear(ax11)
     update_clear(ax12)
@@ -850,6 +850,53 @@ def kinematics_gmm(data, responsibilities, event_info):
                     ax12.scatter(data[final_mask, 1]+1, data[final_mask, 2]+1, marker = 'o')
                     ax13.scatter(data[final_mask, 0]+1, data[final_mask, 2]+1, marker = 'o')
     return lab_angles_initial, intersections_initial, lab_angles_minimize, start_point_initial, end_point_initial, closest_threshold_dict, closest_angle_dict, phi_angles_initial, data
+
+# Function to plot the kinematics of GMM Clusters
+def calculate_beta(data, model = None):
+    if model == DataArray.ransac_labels.value:
+        data = add_filters(data, model= int(DataArray.ransac_labels.value))
+    lab_angles_beta = {}
+    track_labels = np.unique(data[:, model])
+    for label in track_labels:
+        cluster_data = data[data[:, model] == label]
+        if len(cluster_data) < 10:
+            continue  # Skip clusters with fewer than 10 points
+        # Calculate the mean of Y coordinate
+        mean_y = np.mean(cluster_data[:, DataArray.Y.value])
+        if (mean_y >= VolumeBoundaries.BEAM_ZONE_MAX.value or mean_y < VolumeBoundaries.BEAM_ZONE_MIN.value) and cluster_data.shape[0] >= 10:
+            # Mask for selecting tracks
+            mask = (
+                    (cluster_data[:, DataArray.scattered_track.value] == 1) &
+                    (cluster_data[:, DataArray.track_inside_volume.value] == 1) &
+                    ((cluster_data[:, DataArray.side_of_track.value] == 1) | (cluster_data[:, DataArray.side_of_track.value] == -1)) &
+                    (cluster_data[:, DataArray.end_point_above_beam_zone.value] == 1)
+                )
+            cut_data = cluster_data[mask, :3]
+            if cut_data.size > 0:
+                end_point, start_point, beam_vector, dirVecTrackNorm, track_mean, closest_points = get_directions(cut_data)
+                distances_from_start = np.linalg.norm(closest_points - start_point, axis=1)
+                angle_beta_dict = {}
+                for beta in range(10, 110, 10):
+                    mask_beta = (distances_from_start >= 0) & (distances_from_start <= beta)
+                    filtered_data = cut_data[mask_beta, :]
+                    if len(filtered_data) > 1:
+                        end_point_beta, start_point_beta, beam_vector_beta, dirVecTrackNorm_beta, track_mean_beta, closest_points_beta = get_directions(filtered_data)
+                        track_vector_beta = end_point_beta - start_point_beta
+                        lab_angle_beta = angle_between(track_vector_beta, beam_vector_beta)
+                        angle_beta_dict[beta] = lab_angle_beta
+                        if plots:
+                            if model == DataArray.ransac_labels.value:
+                                plot_beta_points(end_point_beta, ax8, ax9, ax10)
+                            if model == DataArray.merge_cdist.value:
+                                plot_beta_points(end_point_beta, ax11, ax12, ax13)
+                lab_angles_beta[label] = angle_beta_dict
+    return lab_angles_beta
+
+# Function to add plot lines
+def plot_beta_points(end_point, ax11, ax12, ax13):
+    ax11.scatter(end_point[0], end_point[1], color='green', marker='o', label='End Point Beta', s=200)
+    ax12.scatter(end_point[1], end_point[2], color='green', marker='o', label='End Point Beta', s=200)
+    ax13.scatter(end_point[0], end_point[2], color='green', marker='o', label='End Point Beta', s=200)
 
 # Function to do final plots
 def final_plots(axes_final, bin_range, bin_width, plot_list, notation):
@@ -1384,8 +1431,8 @@ for energy in excitation_energies:
         print('Reading', entry ,'entries from file', filename)
 
         if save_to_root:
-            path_output = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/test/"
-            root_file = root.TFile(path_output+"ari_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".root", "UPDATE")
+            path_output = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta/"
+            root_file = root.TFile(path_output+"beta_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".root", "UPDATE")
             print(root_file)
             result = create_tree_and_branches("events")
 
@@ -1483,6 +1530,10 @@ for energy in excitation_energies:
                     ransac['end_point'] = end_point_ransac
                     ransac['phi_angles'] = phi_angle_ransac
 
+                    lab_angles_beta_ransac = calculate_beta(data_array, model = DataArray.ransac_labels.value)
+                    print(lab_angles_beta_ransac)
+                    ransac['beta'] = lab_angles_beta_ransac
+
                     # Create Filters to the tracks
                     # data_array = [0-x,1-y,2-z,3-q,4-track_ID, 5-true_labels_sim, 6-true_labels_hard, 7-ransac labels, 8-gmm labels, 9-dbscan labels, 10 - merge labels]
                     data_array = add_filters(data_array, model= int(DataArray.merge_p_val.value))
@@ -1536,6 +1587,10 @@ for energy in excitation_energies:
                     # print(metric_low_energy)
                     gmm['track_dist_metric'] = metric_low_energy
 
+
+                    lab_angles_beta_gmm = calculate_beta(data_array, model = DataArray.merge_cdist.value)
+                    print(lab_angles_beta_gmm)
+                    gmm['beta'] = lab_angles_beta_gmm
                     # print('GMM intersections', intersections_gmm)
                     # print('minimize', angles_minimize_gmm)
 
@@ -1581,7 +1636,7 @@ for energy in excitation_energies:
 
 
 
-                    print("ARI Indices", ransac['ari'], ransac['filtered_ari'], gmm['ari'], gmm['filtered_ari'], gmm['ari_pval'], gmm['filtered_ari_pval'], gmm['ari_cdist'], gmm['filtered_ari_cdist'])
+                    # print("ARI Indices", ransac['ari'], ransac['filtered_ari'], gmm['ari'], gmm['filtered_ari'], gmm['ari_pval'], gmm['filtered_ari_pval'], gmm['ari_cdist'], gmm['filtered_ari_cdist'])
                     # print(np.unique(data_array[:, DataArray.true_labels_sim.value]), np.unique(data_array[:, DataArray.ransac_labels.value]), np.unique(data_array[:, DataArray.gmm_labels.value]), np.unique(data_array[:, DataArray.merge_p_val.value]))
                     # print(len(data_array[data_array[:, DataArray.true_labels_sim.value] == 1]))
                     # print(len(data_array[data_array[:, DataArray.ransac_labels.value] == 1]))
