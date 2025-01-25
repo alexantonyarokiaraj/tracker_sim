@@ -53,7 +53,7 @@ split_strings = input_string.split('@')
 excitation_energies=[split_strings[0]]
 cm_angles=[split_strings[1]]
 path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/DATA/simulation/5000/"
-plots = False
+plots = True
 sim = True
 debug=False
 final_plots_flag = False
@@ -61,8 +61,8 @@ event_start = int(split_strings[2])
 event_end = int(split_strings[3])
 save_final_data=False
 with_missing_pads = True
-batch_mode = True
-save_to_root = True
+batch_mode = False
+save_to_root = False
 save_python_figures = False
 
 np.set_printoptions(threshold=np.inf)
@@ -886,17 +886,22 @@ def calculate_beta(data, model = None):
                         angle_beta_dict[beta] = lab_angle_beta
                         if plots:
                             if model == DataArray.ransac_labels.value:
-                                plot_beta_points(end_point_beta, ax8, ax9, ax10)
+                                plot_beta_points(start_point_beta, end_point_beta, ax8, ax9, ax10)
                             if model == DataArray.merge_cdist.value:
-                                plot_beta_points(end_point_beta, ax11, ax12, ax13)
+                                plot_beta_points(start_point_beta, end_point_beta, ax11, ax12, ax13)
                 lab_angles_beta[label] = angle_beta_dict
     return lab_angles_beta
 
 # Function to add plot lines
-def plot_beta_points(end_point, ax11, ax12, ax13):
-    ax11.scatter(end_point[0], end_point[1], color='green', marker='o', label='End Point Beta', s=200)
-    ax12.scatter(end_point[1], end_point[2], color='green', marker='o', label='End Point Beta', s=200)
-    ax13.scatter(end_point[0], end_point[2], color='green', marker='o', label='End Point Beta', s=200)
+def plot_beta_points(start_point, end_point, ax11, ax12, ax13):
+    ax11.plot([start_point[0], end_point[0]], [start_point[1], end_point[1]], label=f'Fitted Line')
+    ax12.plot([start_point[1], end_point[1]], [start_point[2], end_point[2]], label=f'Fitted Line')
+    ax13.plot([start_point[0], end_point[0]], [start_point[2], end_point[2]], label=f'Fitted Line')
+    ax11.scatter(start_point[0], start_point[1], color='blue', marker='x', label='Start Point', s=200)
+    ax11.scatter(end_point[0], end_point[1], color='green', marker='x', label='End Point', s=100)
+    ax12.scatter(start_point[1], start_point[2], color='blue', marker='x', label='Start Point', s=200)
+    ax12.scatter(end_point[1], end_point[2], color='green', marker='x', label='End Point', s=100)
+
 
 # Function to do final plots
 def final_plots(axes_final, bin_range, bin_width, plot_list, notation):
@@ -1431,7 +1436,7 @@ for energy in excitation_energies:
         print('Reading', entry ,'entries from file', filename)
 
         if save_to_root:
-            path_output = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta/"
+            path_output = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/test/"
             root_file = root.TFile(path_output+"beta_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".root", "UPDATE")
             print(root_file)
             result = create_tree_and_branches("events")
@@ -1529,6 +1534,8 @@ for energy in excitation_energies:
                     ransac['start_point'] = start_point_ransac
                     ransac['end_point'] = end_point_ransac
                     ransac['phi_angles'] = phi_angle_ransac
+                    print('Phi Angles')
+                    print(phi_angle_ransac)
 
                     lab_angles_beta_ransac = calculate_beta(data_array, model = DataArray.ransac_labels.value)
                     print(lab_angles_beta_ransac)
