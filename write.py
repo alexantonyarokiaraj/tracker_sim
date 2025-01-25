@@ -9,6 +9,7 @@ def create_tree_and_branches(tree_name):
 
     # Declare variables
     eventid = ROOT.std.vector("int")()
+    endpoints = ROOT.std.vector("float")()
     verX = ROOT.std.vector("float")()
     verY = ROOT.std.vector("float")()
     verZ = ROOT.std.vector("float")()
@@ -60,6 +61,7 @@ def create_tree_and_branches(tree_name):
 
     # Create branches for each variable
     tree.Branch("eventid", eventid)
+    tree.Branch("endpoints", endpoints)
     tree.Branch("verX", verX)
     tree.Branch("verY", verY)
     tree.Branch("verZ", verZ)
@@ -112,6 +114,7 @@ def create_tree_and_branches(tree_name):
     return {
         "tree": tree,
         "eventid": eventid,
+        "endpoints": endpoints,
         "verX": verX,
         "verY": verY,
         "verZ": verZ,
@@ -167,6 +170,7 @@ def fill_event_data_to_tree(result, event_data):
 
     # Clear the vectors before filling new data
     eventid = result["eventid"]
+    endpoints = result["endpoints"]
     verX = result["verX"]
     verY = result["verY"]
     verZ = result["verZ"]
@@ -218,6 +222,7 @@ def fill_event_data_to_tree(result, event_data):
 
 
     eventid.clear()
+    endpoints.clear()
     verX.clear()
     verY.clear()
     verZ.clear()
@@ -296,6 +301,10 @@ def fill_event_data_to_tree(result, event_data):
 
 
     # Iterate and Fill
+
+    for endpoint in event_data.end_points.values():
+        endpoints.push_back(endpoint)
+
     for angle in event_data.ransac["angles"].values():
         ransac_angles.push_back(angle)
 

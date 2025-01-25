@@ -53,7 +53,7 @@ split_strings = input_string.split('@')
 excitation_energies=[split_strings[0]]
 cm_angles=[split_strings[1]]
 path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/DATA/simulation/5000/"
-plots = True
+plots = False
 sim = True
 debug=False
 final_plots_flag = False
@@ -61,8 +61,8 @@ event_start = int(split_strings[2])
 event_end = int(split_strings[3])
 save_final_data=False
 with_missing_pads = True
-batch_mode = False
-save_to_root = False
+batch_mode = True
+save_to_root = True
 save_python_figures = False
 
 np.set_printoptions(threshold=np.inf)
@@ -253,6 +253,35 @@ button_next.on_clicked(next_button_callback)
 #######################################
 # Supporting Functions
 #######################################
+
+def get_yz_min_max(data):
+    """
+    Returns the minimum and maximum values for Y and Z from the data array.
+
+    Args:
+        data (np.ndarray): A NumPy array where columns represent X, Y, and Z.
+
+    Returns:
+        dict: A dictionary containing min/max values of Y and Z.
+    """
+    if data.shape[1] < 3:
+        raise ValueError("Data must have at least three columns (X, Y, Z).")
+
+    # Extract Y and Z columns
+    y_values = data[:, 1]
+    z_values = data[:, 2]
+
+    # Compute min and max
+    y_min, y_max = np.min(y_values), np.max(y_values)
+    z_min, z_max = np.min(z_values), np.max(z_values)
+
+    return {
+        "y_min": y_min,
+        "y_max": y_max,
+        "z_min": z_min,
+        "z_max": z_max
+    }
+
 def angle_between(v1, v2):
     """
     Calculate the angle (in degrees) between two vectors.
@@ -876,7 +905,7 @@ def calculate_beta(data, model = None):
                 end_point, start_point, beam_vector, dirVecTrackNorm, track_mean, closest_points = get_directions(cut_data)
                 distances_from_start = np.linalg.norm(closest_points - start_point, axis=1)
                 angle_beta_dict = {}
-                for beta in range(10, 110, 10):
+                for beta in range(10, 110, 1):
                     mask_beta = (distances_from_start >= 0) & (distances_from_start <= beta)
                     filtered_data = cut_data[mask_beta, :]
                     if len(filtered_data) > 1:
@@ -1436,12 +1465,12 @@ for energy in excitation_energies:
         print('Reading', entry ,'entries from file', filename)
 
         if save_to_root:
-            path_output = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/test/"
+            path_output = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single/"
             root_file = root.TFile(path_output+"beta_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".root", "UPDATE")
             print(root_file)
             result = create_tree_and_branches("events")
 
-        EventInfo = namedtuple('Events', ['event_id', 'verX', 'verY', 'verZ', 'dirX', 'dirY', 'dirZ', 'Eenergy', 'Elab', 'ransac', 'gmm'])
+        EventInfo = namedtuple('Events', ['event_id', 'verX', 'verY', 'verZ', 'dirX', 'dirY', 'dirZ', 'Eenergy', 'Elab', 'ransac', 'gmm','end_points'])
         EventInfoList = []
         exception_events = []
 
@@ -1462,7 +1491,8 @@ for energy in excitation_energies:
                                         Eenergy= None,
                                         Elab = None,
                                         ransac=None,
-                                        gmm=None)
+                                        gmm=None,
+                                        end_points=None)
 
                     # Initialise dictionaries to be later written to the tree
                     ransac = {}
@@ -1495,6 +1525,12 @@ for energy in excitation_energies:
                         if debug:
                             print('Data recorded in event')
                             print(data_array)
+
+                    end_points_data_array = get_yz_min_max(data_array)
+                    print('End Points')
+                    print(end_points_data_array)
+
+                    event_info = event_info._replace(end_points=end_points_data_array)
 
                     # Assign True Labels based on trackID from simulation
                     true_labels_sim = assign_beam_or_scattered(data_array, incoming_labels)

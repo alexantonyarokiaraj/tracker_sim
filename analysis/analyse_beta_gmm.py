@@ -2,7 +2,7 @@ import ROOT
 import numpy as np
 
 # Define arrays for excitation energy and cm angle
-excitation_energies = [0,5,10,15,20,25]  # Example values
+excitation_energies = [0, 5, 10, 15, 20, 25]  # Example values
 cm_angles = [1,2,3,4]  # Example values
 benchmark_range = 40  # The range used as a benchmark for track selection
 

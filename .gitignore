@@ -1,3 +1,7 @@
 output/
 access_token
 histograms/
+DATA/
+schedule_1.txt
+schedule_2.txt
+schedule_3.txt
