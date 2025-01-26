@@ -790,37 +790,49 @@ def kinematics_gmm(data, responsibilities, event_info):
     closest_threshold_dict = {}
     closest_angle_dict = {}
 
-    gmm_labels = np.unique(data[:, DataArray.merge_p_val.value])
+    gmm_labels = np.unique(data[:, DataArray.merge_cdist.value])
     for label in gmm_labels:
-        cluster_data = data[data[:, DataArray.merge_p_val.value] == label]
+        cluster_data = data[data[:, DataArray.merge_cdist.value] == label]
         if len(cluster_data) < 10:
             continue  # Skip clusters with fewer than 10 points
         # Calculate the mean of Y coordinate
         mean_y = np.mean(cluster_data[:, DataArray.Y.value])
         if (mean_y >= VolumeBoundaries.BEAM_ZONE_MAX.value or mean_y < VolumeBoundaries.BEAM_ZONE_MIN.value) and cluster_data.shape[0] >= 10:
             # Mask for selecting tracks
+            # mask = (
+            #         (cluster_data[:, DataArray.scattered_track.value] == 1) &  # Column 9: (beam_track_flag_col) = 1
+            #         (cluster_data[:, DataArray.track_inside_volume.value] == 1) &  # Column 10: (volume_check_flag_col) = 1
+            #         (cluster_data[:, DataArray.vertex_inside_volume.value] == 1) &  # Column 11: (intersection_flag_col) = 1
+            #         ((cluster_data[:, DataArray.side_of_track.value] == 1) | (cluster_data[:, DataArray.side_of_track.value] == -1)) &  # Column 12: (side_flag_col) = 1 or -1
+            #         ((cluster_data[:, DataArray.closest_track.value] == 1) | (cluster_data[:, DataArray.closest_track.value] == -1)) & # Column 13: (proximity_flag_col) = 1 or 2
+            #         (cluster_data[:, DataArray.end_point_above_beam_zone.value] == 1) # Column 14: Track End point above the beam zone
+            #     )
             mask = (
-                    (cluster_data[:, DataArray.scattered_track.value] == 1) &  # Column 9: (beam_track_flag_col) = 1
-                    (cluster_data[:, DataArray.track_inside_volume.value] == 1) &  # Column 10: (volume_check_flag_col) = 1
-                    (cluster_data[:, DataArray.vertex_inside_volume.value] == 1) &  # Column 11: (intersection_flag_col) = 1
-                    ((cluster_data[:, DataArray.side_of_track.value] == 1) | (cluster_data[:, DataArray.side_of_track.value] == -1)) &  # Column 12: (side_flag_col) = 1 or -1
-                    ((cluster_data[:, DataArray.closest_track.value] == 1) | (cluster_data[:, DataArray.closest_track.value] == -1)) & # Column 13: (proximity_flag_col) = 1 or 2
-                    (cluster_data[:, DataArray.end_point_above_beam_zone.value] == 1) # Column 14: Track End point above the beam zone
-                )
-            if cluster_data[mask, :3].size > 0:
+                (cluster_data[:, DataArray.scattered_track.value] == 1) &
+                (cluster_data[:, DataArray.track_inside_volume.value] == 1) &
+                ((cluster_data[:, DataArray.side_of_track.value] == 1) | (cluster_data[:, DataArray.side_of_track.value] == -1)) &
+                (cluster_data[:, DataArray.end_point_above_beam_zone.value] == 1)
+            )
+            cut_data = cluster_data[mask, :3]
+            if cut_data.size > 0:
                 # Fill the lab angles and intersections based on first PCA fit.
-                end_point, start_point, beam_vector, dirVecTrackNorm, track_mean, closest_points = get_directions(cluster_data[mask, :3])
-                track_vector = end_point - start_point
-                lab_angle = angle_between(track_vector, beam_vector)
-                phi_angle = calculate_phi_angle(track_vector, beam_vector)
-                intersection_point = closest_point_on_line1(start_point, track_vector, np.array([0,128,128]), beam_vector)
-                lab_angles_initial[label] = round(lab_angle, 2)
-                intersections_initial[label] = intersection_point
-                start_point_initial[label] = start_point
-                end_point_initial[label] = end_point
-                phi_angles_initial[label] = phi_angle
+                end_point_full, start_point_full, beam_vector_full, dirVecTrackNorm_full, track_mean_full, closest_points_full = get_directions(cut_data)
+                distances_from_start = np.linalg.norm(closest_points_full - start_point_full, axis=1)
+                mask_beta = (distances_from_start >= 0) & (distances_from_start <= 40)
+                filtered_data_beta = cut_data[mask_beta, :]
+                if len(filtered_data_beta) > 1:
+                    end_point_beta, start_point_beta, beam_vector_beta, dirVecTrackNorm_beta, track_mean_beta, closest_points_beta = get_directions(filtered_data_beta)
+                    track_vector_beta = end_point_beta - start_point_beta
+                    lab_angle_beta = angle_between(track_vector_beta, beam_vector_beta)
+                    phi_angle_beta = calculate_phi_angle(track_vector_beta, beam_vector_beta)
+                    intersection_point_beta = closest_point_on_line1(start_point_beta, track_vector_beta, np.array([0,128,128]), beam_vector_beta)
+                    lab_angles_initial[label] = round(lab_angle_beta, 2)
+                    intersections_initial[label] = intersection_point_beta
+                    start_point_initial[label] = start_point_beta
+                    end_point_initial[label] = end_point_beta
+                    phi_angles_initial[label] = phi_angle_beta
                 if plots:
-                    plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection_point, closest_points, ax11, ax12, ax13)
+                    plot_lines(track_mean_beta, dirVecTrackNorm_beta, start_point_beta, end_point_beta, intersection_point_beta, closest_points_beta, ax11, ax12, ax13)
                 # print('Track inside Volume', start_point, end_point, intersection_point, np.unique(cluster_data[:, 10]), np.unique(cluster_data[:, 11]), np.unique(cluster_data[:, 12]))
             else:
                 end_point, start_point, beam_vector, dirVecTrackNorm, track_mean, closest_points = get_directions(cluster_data[:, :3])
@@ -843,32 +855,36 @@ def kinematics_gmm(data, responsibilities, event_info):
             range_7 = np.linspace(0.5, 1, 10)
             # Concatenate all ranges
             beam_zone_mask = (data[:, DataArray.Y.value] >= VolumeBoundaries.BEAM_ZONE_MIN.value-2) & (data[:, DataArray.Y.value] <= VolumeBoundaries.BEAM_ZONE_MAX.value+2)
-            labels_for_current_label = data[:, DataArray.merge_p_val.value] == label
+            labels_for_current_label = data[:, DataArray.merge_cdist.value] == label
             not_belonging_to_label = ~labels_for_current_label
             inside_beam_zone_not_label = beam_zone_mask & not_belonging_to_label
-            # res = np.concatenate([range_1, range_2, range_3, range_4, range_5, range_6, range_7])
-            gmm_indices = np.where(data[:, DataArray.merge_p_val.value] == label)[0]
-            gmm_labels_raw = np.unique(data[gmm_indices, 6])
+            res = np.concatenate([range_1, range_2, range_3, range_4, range_5, range_6, range_7])
+            gmm_indices = np.where(data[:, DataArray.merge_cdist.value] == label)[0]
+            gmm_labels_raw = np.unique(data[gmm_indices, DataArray.gmm_labels.value])
             gmm_labels_raw = np.array(gmm_labels_raw, dtype=int)
-            res = [0.1]
-            if cluster_data[mask, :3].size > 0:
+            # res = [0.1]
+            cut_data = cluster_data[mask, :3]
+            if cut_data.size > 0:
+                end_point_fnew, start_point_fnew, beam_vector_fnew, dirVecTrackNorm_fnew, track_mean_fnew, closest_points_fnew = get_directions(cut_data)
+                distances_from_start_fnew = np.linalg.norm(closest_points_fnew - start_point_fnew, axis=1)
+                mask_beta_fnew = (distances_from_start_fnew >= 0) & (distances_from_start_fnew <= 40)
                 for res_threshold in res:
                     responsibility_threshold = res_threshold
                     responsibility_mask = np.any(responsibilities[:, gmm_labels_raw] > responsibility_threshold, axis=1)
                     final_mask = inside_beam_zone_not_label & responsibility_mask
-                    data_for_angle = np.vstack((cluster_data[mask, :3], data[final_mask, :3]))
-                    end_point, start_point, beam_vector, dirVecTrackNorm, track_mean, closest_points = get_directions(data_for_angle)
-                    track_vector = end_point - start_point
-                    lab_angle_p = angle_between(track_vector, beam_vector)
+                    data_for_angle = np.vstack((cut_data[mask_beta_fnew, :3], data[final_mask, :3]))
+                    end_point_resp, start_point_resp, beam_vector_resp, dirVecTrackNorm_resp, track_mean_resp, closest_points_resp = get_directions(data_for_angle)
+                    track_vector_resp = end_point_resp - start_point_resp
+                    lab_angle_p = angle_between(track_vector_resp, beam_vector_resp)
                     lab_angles_resp[res_threshold] = round(lab_angle_p, 2)
                 lab_angles_minimize[label] = lab_angles_resp
                 closest_threshold, closest_angle = min(lab_angles_resp.items(), key=lambda item: abs(item[1] - event_info.Elab))
                 closest_threshold_dict[label] = closest_threshold
                 closest_angle_dict[label] = closest_angle
                 responsibility_threshold = closest_threshold
-                responsibility_mask = responsibilities[:, int(label)] > responsibility_threshold
+                responsibility_mask = np.any(responsibilities[:, gmm_labels_raw] > responsibility_threshold, axis=1)
                 final_mask = inside_beam_zone_not_label & responsibility_mask
-                data_for_angle = np.vstack((cluster_data[mask, :3], data[final_mask, :3]))
+                data_for_angle = np.vstack((cut_data[mask_beta_fnew, :3], data[final_mask, :3]))
                 end_point, start_point, beam_vector, dirVecTrackNorm, track_mean, closest_points = get_directions(data_for_angle)
                 track_vector = end_point - start_point
                 print('Lowest Angle, Threshold', round(angle_between(track_vector, beam_vector), 2), closest_threshold*100)
@@ -1465,8 +1481,8 @@ for energy in excitation_energies:
         print('Reading', entry ,'entries from file', filename)
 
         if save_to_root:
-            path_output = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single/"
-            root_file = root.TFile(path_output+"beta_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".root", "UPDATE")
+            path_output = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/gamma/"
+            root_file = root.TFile(path_output+"gamma_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".root", "UPDATE")
             print(root_file)
             result = create_tree_and_branches("events")
 
@@ -1527,8 +1543,8 @@ for energy in excitation_energies:
                             print(data_array)
 
                     end_points_data_array = get_yz_min_max(data_array)
-                    print('End Points')
-                    print(end_points_data_array)
+                    # print('End Points')
+                    # print(end_points_data_array)
 
                     event_info = event_info._replace(end_points=end_points_data_array)
 
@@ -1564,18 +1580,19 @@ for energy in excitation_energies:
                     data_array = np.column_stack((data_array, final_clusters))
 
                     angles_ransac, intersections_ransac, start_point_ransac, end_point_ransac, phi_angle_ransac = kinematics_ransac(data_array, fitted_models, False)
-                    print('RANSAC angles', angles_ransac)
+                    print('RANSAC angles', angles_ransac, event_info.Elab)
                     ransac['angles'] = angles_ransac
                     ransac['intersections'] = intersections_ransac
                     ransac['start_point'] = start_point_ransac
                     ransac['end_point'] = end_point_ransac
                     ransac['phi_angles'] = phi_angle_ransac
-                    print('Phi Angles')
-                    print(phi_angle_ransac)
+                    # print('Phi Angles')
+                    # print(phi_angle_ransac)
 
-                    lab_angles_beta_ransac = calculate_beta(data_array, model = DataArray.ransac_labels.value)
-                    print(lab_angles_beta_ransac)
-                    ransac['beta'] = lab_angles_beta_ransac
+                    # lab_angles_beta_ransac = calculate_beta(data_array, model = DataArray.ransac_labels.value)
+                    # print(lab_angles_beta_ransac)
+                    # ransac['beta'] = lab_angles_beta_ransac
+                    ransac['beta'] = {}
 
                     # Create Filters to the tracks
                     # data_array = [0-x,1-y,2-z,3-q,4-track_ID, 5-true_labels_sim, 6-true_labels_hard, 7-ransac labels, 8-gmm labels, 9-dbscan labels, 10 - merge labels]
@@ -1626,14 +1643,17 @@ for energy in excitation_energies:
                     gmm['min_angle'] = closest_angle
                     gmm['phi_angles'] = phi_angle_gmm
 
+
+                    print(angles_minimize_gmm)
                     # print('Printing the metric')
                     # print(metric_low_energy)
                     gmm['track_dist_metric'] = metric_low_energy
 
 
-                    lab_angles_beta_gmm = calculate_beta(data_array, model = DataArray.merge_cdist.value)
-                    print(lab_angles_beta_gmm)
-                    gmm['beta'] = lab_angles_beta_gmm
+                    # lab_angles_beta_gmm = calculate_beta(data_array, model = DataArray.merge_cdist.value)
+                    # print(lab_angles_beta_gmm)
+                    lab_angles_beta_gmm = {}
+                    # gmm['beta'] = lab_angles_beta_gmm
                     # print('GMM intersections', intersections_gmm)
                     # print('minimize', angles_minimize_gmm)
 
