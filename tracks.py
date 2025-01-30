@@ -53,7 +53,7 @@ split_strings = input_string.split('@')
 excitation_energies=[split_strings[0]]
 cm_angles=[split_strings[1]]
 path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/DATA/simulation/5000/"
-plots = False
+plots = True
 sim = True
 debug=False
 final_plots_flag = False
@@ -61,8 +61,8 @@ event_start = int(split_strings[2])
 event_end = int(split_strings[3])
 save_final_data=False
 with_missing_pads = True
-batch_mode = True
-save_to_root = True
+batch_mode = False
+save_to_root = False
 save_python_figures = False
 
 np.set_printoptions(threshold=np.inf)
@@ -881,7 +881,8 @@ def kinematics_gmm(data, responsibilities, event_info):
                 closest_threshold, closest_angle = min(lab_angles_resp.items(), key=lambda item: abs(item[1] - event_info.Elab))
                 closest_threshold_dict[label] = closest_threshold
                 closest_angle_dict[label] = closest_angle
-                responsibility_threshold = closest_threshold
+                # responsibility_threshold = closest_threshold
+                responsibility_threshold = 0.025
                 responsibility_mask = np.any(responsibilities[:, gmm_labels_raw] > responsibility_threshold, axis=1)
                 final_mask = inside_beam_zone_not_label & responsibility_mask
                 data_for_angle = np.vstack((cut_data[mask_beta_fnew, :3], data[final_mask, :3]))
@@ -1481,7 +1482,7 @@ for energy in excitation_energies:
         print('Reading', entry ,'entries from file', filename)
 
         if save_to_root:
-            path_output = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/gamma/"
+            path_output = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/test/"
             root_file = root.TFile(path_output+"gamma_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".root", "UPDATE")
             print(root_file)
             result = create_tree_and_branches("events")
@@ -1644,7 +1645,7 @@ for energy in excitation_energies:
                     gmm['phi_angles'] = phi_angle_gmm
 
 
-                    print(angles_minimize_gmm)
+                    # print(angles_minimize_gmm)
                     # print('Printing the metric')
                     # print(metric_low_energy)
                     gmm['track_dist_metric'] = metric_low_energy
@@ -1652,7 +1653,7 @@ for energy in excitation_energies:
 
                     # lab_angles_beta_gmm = calculate_beta(data_array, model = DataArray.merge_cdist.value)
                     # print(lab_angles_beta_gmm)
-                    lab_angles_beta_gmm = {}
+                    gmm['beta'] = {}
                     # gmm['beta'] = lab_angles_beta_gmm
                     # print('GMM intersections', intersections_gmm)
                     # print('minimize', angles_minimize_gmm)

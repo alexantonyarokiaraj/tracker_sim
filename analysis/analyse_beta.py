@@ -2,18 +2,25 @@ import ROOT
 import numpy as np
 
 # Define arrays for excitation energy and cm angle
-excitation_energies = [0]  # Example values
-cm_angles = [3]  # Example values
+excitation_energies = [10]  # Example values
+cm_angles = [1,2,3,4,5]  # Example values
 benchmark_range = 40  # The range used as a benchmark for track selection
 
 # Loop over excitation energy and cm angle
 for energy in excitation_energies:
+    beta_numpy_array = []
     for cm_angle in cm_angles:
         # Construct the ROOT file names dynamically for both ranges
-        file_1 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta/beta_sim_5000_{energy}mev_{cm_angle}cm_1_2500.root"
-        file_2 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta/beta_sim_5000_{energy}mev_{cm_angle}cm_2501_5000.root"
-
-        print(f"Processing files: {file_1} and {file_2}")
+        file_1 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single/beta_sim_5000_{energy}mev_{cm_angle}cm_1_500.root"
+        file_2 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single/beta_sim_5000_{energy}mev_{cm_angle}cm_501_1000.root"
+        file_3 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single/beta_sim_5000_{energy}mev_{cm_angle}cm_1001_1500.root"
+        file_4 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single/beta_sim_5000_{energy}mev_{cm_angle}cm_1501_2000.root"
+        file_5 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single/beta_sim_5000_{energy}mev_{cm_angle}cm_2001_2500.root"
+        file_6 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single/beta_sim_5000_{energy}mev_{cm_angle}cm_2501_3000.root"
+        file_7 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single/beta_sim_5000_{energy}mev_{cm_angle}cm_3001_3500.root"
+        file_8 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single/beta_sim_5000_{energy}mev_{cm_angle}cm_3501_4000.root"
+        file_9 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single/beta_sim_5000_{energy}mev_{cm_angle}cm_4001_4500.root"
+        file_10 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single/beta_sim_5000_{energy}mev_{cm_angle}cm_4501_5000.root"
 
         # Define histograms
         h_verX = ROOT.TH1F("h_verX", "verX Distribution;verX;Counts", 256, 0, 256)
@@ -39,20 +46,40 @@ for energy in excitation_energies:
         # Open the ROOT files
         root_file_1 = ROOT.TFile.Open(file_1, "READ")
         root_file_2 = ROOT.TFile.Open(file_2, "READ")
-
-        if not root_file_1 or root_file_1.IsZombie() or not root_file_2 or root_file_2.IsZombie():
-            print(f"Error: Cannot open one or both files {file_1} or {file_2}")
-            continue
+        root_file_3 = ROOT.TFile.Open(file_3, "READ")
+        root_file_4 = ROOT.TFile.Open(file_4, "READ")
+        root_file_5 = ROOT.TFile.Open(file_5, "READ")
+        root_file_6 = ROOT.TFile.Open(file_6, "READ")
+        root_file_7 = ROOT.TFile.Open(file_7, "READ")
+        root_file_8 = ROOT.TFile.Open(file_8, "READ")
+        root_file_9 = ROOT.TFile.Open(file_9, "READ")
+        root_file_10 = ROOT.TFile.Open(file_10, "READ")
 
         # Get the TTree from both files
         tree_name = "events"  # Change if your tree has a different name
         tree_1 = root_file_1.Get(tree_name)
         tree_2 = root_file_2.Get(tree_name)
+        tree_3 = root_file_3.Get(tree_name)
+        tree_4 = root_file_4.Get(tree_name)
+        tree_5 = root_file_5.Get(tree_name)
+        tree_6 = root_file_6.Get(tree_name)
+        tree_7 = root_file_7.Get(tree_name)
+        tree_8 = root_file_8.Get(tree_name)
+        tree_9 = root_file_9.Get(tree_name)
+        tree_10 = root_file_10.Get(tree_name)
 
-        if not tree_1 or not tree_2:
+        if not tree_1 or not tree_2 or not tree_3 or not tree_4 or not tree_5 or not tree_6 or not tree_7 or not tree_8 or not tree_9 or not tree_10:
             print(f"Error: TTree '{tree_name}' not found in one of the files.")
             root_file_1.Close()
             root_file_2.Close()
+            root_file_3.Close()
+            root_file_4.Close()
+            root_file_5.Close()
+            root_file_6.Close()
+            root_file_7.Close()
+            root_file_8.Close()
+            root_file_9.Close()
+            root_file_10.Close()
             continue
 
         # Dictionary to store selected angles for each range (across all events)
@@ -61,7 +88,7 @@ for energy in excitation_energies:
         counter = 0
 
         # Loop over both trees
-        for tree in [tree_1, tree_2]:
+        for tree in [tree_1, tree_2, tree_3, tree_4, tree_5, tree_6, tree_7, tree_8, tree_9, tree_10]:
             for event in tree:
                 # print('Event->', event.eventid)
                 if counter > 5200:
@@ -89,10 +116,10 @@ for energy in excitation_energies:
                 gmm_end = gmm_end.reshape(-1, 3)  # Reshape into (N_tracks, 3) format
 
                 # Check if at least one track has (x, y, z) within [10, 246] mm
-                # if not np.any((10 <= gmm_end[:, 0]) & (gmm_end[:, 0] <= 246) &
-                #             (10 <= gmm_end[:, 1]) & (gmm_end[:, 1] <= 246) &
-                #             (10 <= gmm_end[:, 2]) & (gmm_end[:, 2] <= 246)):
-                #     continue  # Skip this event if no track meets the condition
+                if not np.any((10 <= gmm_end[:, 0]) & (gmm_end[:, 0] <= 246) &
+                            (10 <= gmm_end[:, 1]) & (gmm_end[:, 1] <= 246) &
+                            (10 <= gmm_end[:, 2]) & (gmm_end[:, 2] <= 246)):
+                    continue  # Skip this event if no track meets the condition
 
                 Elab_value = event.Elab[0]  # Get Elab for the current event
 
@@ -165,15 +192,7 @@ for energy in excitation_energies:
                         angles_by_range[range_key] = []
                     angles_by_range[range_key].append(Elab_value-angle)
 
-
-
-        print('angle', cm_angle)
-        # Create a new ROOT canvas
-        canvas = ROOT.TCanvas(f"Canvas_{energy}_{cm_angle}", f"Energy={energy} MeV, Angle={cm_angle}°", 800, 600)
-        canvas.Divide(5, 2)  # Divide canvas into sub-pads (adjust if needed)
-
         histograms = {}  # Dictionary to store histograms
-        pad_num = 1  # Track which pad to use
 
         # Create histograms for each range
         for range_key, angles in angles_by_range.items():
@@ -188,42 +207,22 @@ for energy in excitation_energies:
             for angle in angles_np:
                 histograms[range_key].Fill(angle)
 
-            # Draw histogram
-            canvas.cd(pad_num)
-            histograms[range_key].Draw()
-            pad_num += 1
-
-        canvas.Update()
-
-        # Create a canvas named "canvas1" to draw histograms
-        canvas1 = ROOT.TCanvas("canvas1", "Histograms", 1200, 800)
-        canvas1.Divide(4, 4)  # 4x4 grid
-
-        # Draw each histogram on a different pad
-        canvas1.cd(1); h_verX.Draw()
-        canvas1.cd(2); h_verY.Draw()
-        canvas1.cd(3); h_verZ.Draw()
-        canvas1.cd(4); h_gmm_phi_angles.Draw()
-
-        canvas1.cd(5); h_gmm_inter_x.Draw()
-        canvas1.cd(6); h_gmm_inter_y.Draw()
-        canvas1.cd(7); h_gmm_inter_z.Draw()
-
-        canvas1.cd(8); h_gmm_start_x.Draw()
-        canvas1.cd(9); h_gmm_start_y.Draw()
-        canvas1.cd(10); h_gmm_start_z.Draw()
-
-        canvas1.cd(11); h_gmm_end_x.Draw()
-        canvas1.cd(12); h_gmm_end_y.Draw()
-        canvas1.cd(13); h_gmm_end_z.Draw()
-
-        # Update the canvas and show the plots
-        canvas1.Update()
-
-        canvas.WaitPrimitive()  # Wait before moving to the next combination
-        canvas1.WaitPrimitive()
-
+            beta_numpy_array.append([cm_angle, range_key, histograms[range_key].GetMean(), histograms[range_key].GetStdDev()])
 
 
         root_file_1.Close()
         root_file_2.Close()
+        root_file_3.Close()
+        root_file_4.Close()
+        root_file_5.Close()
+        root_file_6.Close()
+        root_file_7.Close()
+        root_file_8.Close()
+        root_file_9.Close()
+        root_file_10.Close()
+        canvas = ROOT.TCanvas("canvas", "2D Histogram", 800, 600)
+        h_gmm_end_x.Draw()  # "COLZ" for color mapping (heatmap)
+        canvas.Update()
+        canvas.Draw()
+        canvas.WaitPrimitive()
+    # np.save('/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/text_files/beta_array.npy', np.array(beta_numpy_array))
