@@ -23,6 +23,8 @@ def create_tree_and_branches(tree_name):
     ransac_track_comp = ROOT.std.vector("int")()
     ransac_ari = ROOT.std.vector("float")()
     ransac_filtered_ari = ROOT.std.vector("float")()
+    ransac_labels_info = ROOT.std.vector("int")()
+    ransac_labels_counts = ROOT.std.vector("int")()
     ransac_angles = ROOT.std.vector("float")()
     ransac_phi_angles = ROOT.std.vector("float")()
     ransac_inter = ROOT.std.vector("float")()
@@ -33,10 +35,16 @@ def create_tree_and_branches(tree_name):
     gmm_track_comp = ROOT.std.vector("int")()
     gmm_ari = ROOT.std.vector("float")()
     gmm_filtered_ari = ROOT.std.vector("float")()
+    gmm_labels_info = ROOT.std.vector("int")()
+    gmm_labels_counts = ROOT.std.vector("int")()
     gmm_ari_pval = ROOT.std.vector("float")()
     gmm_filtered_ari_pval = ROOT.std.vector("float")()
+    p_value_labels_info = ROOT.std.vector("int")()
+    p_value_labels_counts = ROOT.std.vector("int")()
     gmm_ari_cdist = ROOT.std.vector("float")()
     gmm_filtered_ari_cdist = ROOT.std.vector("float")()
+    cdist_labels_info = ROOT.std.vector("int")()
+    cdist_labels_counts = ROOT.std.vector("int")()
     gmm_angles = ROOT.std.vector("float")()
     gmm_phi_angles = ROOT.std.vector("float")()
     gmm_inter = ROOT.std.vector("float")()
@@ -47,9 +55,22 @@ def create_tree_and_branches(tree_name):
     gmm_min_res = ROOT.std.vector("float")()
     gmm_min_angle = ROOT.std.vector("float")()
     gmm_bb_metric = ROOT.std.vector("float")()
+    gmm_bb_size1 = ROOT.std.vector("int")()
+    gmm_bb_size2 = ROOT.std.vector("int")()
+    gmm_bb_unique_label = ROOT.std.vector("int")()
     gmm_bt_metric = ROOT.std.vector("float")()
+    gmm_bt_size1 = ROOT.std.vector("int")()
+    gmm_bt_size2 = ROOT.std.vector("int")()
+    gmm_bt_unique_label = ROOT.std.vector("int")()
     gmm_tt_metric = ROOT.std.vector("float")()
+    gmm_tt_size1 = ROOT.std.vector("int")()
+    gmm_tt_size2 = ROOT.std.vector("int")()
+    gmm_tt_unique_label = ROOT.std.vector("int")()
     gmm_td_metric = ROOT.std.vector("float")()
+    gmm_td_size1 = ROOT.std.vector("int")()
+    gmm_td_size2 = ROOT.std.vector("int")()
+    gmm_td_unique_label = ROOT.std.vector("int")()
+
     beta_ransac_tracks = ROOT.std.vector("float")()
     beta_ransac_counts = ROOT.std.vector("float")()
     beta_ransac = ROOT.std.vector("float")()
@@ -74,7 +95,10 @@ def create_tree_and_branches(tree_name):
     tree.Branch("ransac_beam_comp", ransac_beam_comp)
     tree.Branch("ransac_track_comp", ransac_track_comp)
     tree.Branch("ransac_ari", ransac_ari)
+    tree.Branch("ransac_ari", ransac_ari)
     tree.Branch("ransac_filtered_ari", ransac_filtered_ari)
+    tree.Branch("ransac_labels_info", ransac_labels_info)
+    tree.Branch("ransac_labels_counts", ransac_labels_counts)
     tree.Branch("ransac_angles", ransac_angles)
     tree.Branch("ransac_phi_angles", ransac_phi_angles)
     tree.Branch("ransac_inter", ransac_inter)
@@ -85,10 +109,16 @@ def create_tree_and_branches(tree_name):
     tree.Branch("gmm_track_comp", gmm_track_comp)
     tree.Branch("gmm_ari", gmm_ari)
     tree.Branch("gmm_filtered_ari", gmm_filtered_ari)
+    tree.Branch("gmm_labels_info", gmm_labels_info)
+    tree.Branch("gmm_labels_counts", gmm_labels_counts)
     tree.Branch("gmm_ari_pval", gmm_ari_pval)
     tree.Branch("gmm_filtered_ari_pval", gmm_filtered_ari_pval)
+    tree.Branch("p_value_labels_info", p_value_labels_info)
+    tree.Branch("p_value_labels_counts", p_value_labels_counts)
     tree.Branch("gmm_ari_cdist", gmm_ari_cdist)
     tree.Branch("gmm_filtered_ari_cdist", gmm_filtered_ari_cdist)
+    tree.Branch("cdist_labels_info", cdist_labels_info)
+    tree.Branch("cdist_labels_counts", cdist_labels_counts)
     tree.Branch("gmm_angles", gmm_angles)
     tree.Branch("gmm_phi_angles", gmm_phi_angles)
     tree.Branch("gmm_inter", gmm_inter)
@@ -99,9 +129,21 @@ def create_tree_and_branches(tree_name):
     tree.Branch("gmm_min_res", gmm_min_res)
     tree.Branch("gmm_min_angle", gmm_min_angle)
     tree.Branch("gmm_bb_metric", gmm_bb_metric)
+    tree.Branch("gmm_bb_size1", gmm_bb_size1)
+    tree.Branch("gmm_bb_size2", gmm_bb_size2)
+    tree.Branch("gmm_bb_unique_label", gmm_bb_unique_label)
     tree.Branch("gmm_bt_metric", gmm_bt_metric)
+    tree.Branch("gmm_bt_size1", gmm_bt_size1)
+    tree.Branch("gmm_bt_size2", gmm_bt_size2)
+    tree.Branch("gmm_bt_unique_label", gmm_bt_unique_label)
     tree.Branch("gmm_tt_metric", gmm_tt_metric)
+    tree.Branch("gmm_tt_size1", gmm_tt_size1)
+    tree.Branch("gmm_tt_size2", gmm_tt_size2)
+    tree.Branch("gmm_tt_unique_label", gmm_tt_unique_label)
     tree.Branch("gmm_td_metric", gmm_td_metric)
+    tree.Branch("gmm_td_size1", gmm_td_size1)
+    tree.Branch("gmm_td_size2", gmm_td_size2)
+    tree.Branch("gmm_td_unique_label", gmm_td_unique_label)
     tree.Branch("beta_ransac_tracks", beta_ransac_tracks)
     tree.Branch("beta_ransac_counts", beta_ransac_counts)
     tree.Branch("beta_ransac", beta_ransac)
@@ -128,6 +170,8 @@ def create_tree_and_branches(tree_name):
         "ransac_track_comp": ransac_track_comp,
         "ransac_ari": ransac_ari,
         "ransac_filtered_ari": ransac_filtered_ari,
+        "ransac_labels_info": ransac_labels_info,
+        "ransac_labels_counts": ransac_labels_counts,
         "ransac_angles": ransac_angles,
         "ransac_phi_angles": ransac_phi_angles,
         "ransac_inter": ransac_inter,
@@ -138,10 +182,16 @@ def create_tree_and_branches(tree_name):
         "gmm_track_comp": gmm_track_comp,
         "gmm_ari": gmm_ari,
         "gmm_filtered_ari": gmm_filtered_ari,
+        "gmm_labels_info": gmm_labels_info,
+        "gmm_labels_counts": gmm_labels_counts,
         "gmm_ari_pval": gmm_ari_pval,
         "gmm_filtered_ari_pval": gmm_filtered_ari_pval,
+        "p_value_labels_info": p_value_labels_info,
+        "p_value_labels_counts": p_value_labels_counts,
         "gmm_ari_cdist": gmm_ari_cdist,
         "gmm_filtered_ari_cdist": gmm_filtered_ari_cdist,
+        "cdist_labels_info": cdist_labels_info,
+        "cdist_labels_counts": cdist_labels_counts,
         "gmm_angles": gmm_angles,
         "gmm_phi_angles": gmm_phi_angles,
         "gmm_inter": gmm_inter,
@@ -152,9 +202,21 @@ def create_tree_and_branches(tree_name):
         "gmm_min_res": gmm_min_res,
         "gmm_min_angle": gmm_min_angle,
         "gmm_bb_metric": gmm_bb_metric,
+        "gmm_bb_size1": gmm_bb_size1,
+        "gmm_bb_size2": gmm_bb_size2,
+        "gmm_bb_unique_label": gmm_bb_unique_label,
         "gmm_tt_metric": gmm_tt_metric,
+        "gmm_tt_size1": gmm_tt_size1,
+        "gmm_tt_size2": gmm_tt_size2,
+        "gmm_tt_unique_label": gmm_tt_unique_label,
         "gmm_bt_metric": gmm_bt_metric,
+        "gmm_bt_size1": gmm_bt_size1,
+        "gmm_bt_size2": gmm_bt_size2,
+        "gmm_bt_unique_label": gmm_bt_unique_label,
         "gmm_td_metric": gmm_td_metric,
+        "gmm_td_size1": gmm_td_size1,
+        "gmm_td_size2": gmm_td_size2,
+        "gmm_td_unique_label": gmm_td_unique_label,
         "beta_ransac_tracks": beta_ransac_tracks,
         "beta_ransac_counts": beta_ransac_counts,
         "beta_ransac": beta_ransac,
@@ -184,6 +246,8 @@ def fill_event_data_to_tree(result, event_data):
     ransac_track_comp = result["ransac_track_comp"]
     ransac_ari = result["ransac_ari"]
     ransac_filtered_ari = result["ransac_filtered_ari"]
+    ransac_labels_info = result["ransac_labels_info"]
+    ransac_labels_counts = result["ransac_labels_counts"]
     ransac_angles = result["ransac_angles"]
     ransac_phi_angles = result["ransac_phi_angles"]
     ransac_inter = result["ransac_inter"]
@@ -194,10 +258,16 @@ def fill_event_data_to_tree(result, event_data):
     gmm_track_comp = result["gmm_track_comp"]
     gmm_ari = result["gmm_ari"]
     gmm_filtered_ari = result["gmm_filtered_ari"]
+    gmm_labels_info = result["gmm_labels_info"]
+    gmm_labels_counts = result["gmm_labels_counts"]
     gmm_ari_pval = result["gmm_ari_pval"]
     gmm_filtered_ari_pval = result["gmm_filtered_ari_pval"]
+    p_value_labels_info = result["p_value_labels_info"]
+    p_value_labels_counts = result["p_value_labels_counts"]
     gmm_ari_cdist = result["gmm_ari_cdist"]
     gmm_filtered_ari_cdist = result["gmm_filtered_ari_cdist"]
+    cdist_labels_info = result["cdist_labels_info"]
+    cdist_labels_counts = result["cdist_labels_counts"]
     gmm_angles = result["gmm_angles"]
     gmm_phi_angles = result["gmm_phi_angles"]
     gmm_inter = result["gmm_inter"]
@@ -208,9 +278,23 @@ def fill_event_data_to_tree(result, event_data):
     gmm_min_res = result["gmm_min_res"]
     gmm_min_angle = result["gmm_min_angle"]
     gmm_bb_metric = result["gmm_bb_metric"]
+    gmm_bb_size1 = result["gmm_bb_size1"]
+    gmm_bb_size2 = result["gmm_bb_size2"]
+    gmm_bb_unique_label = result["gmm_bb_unique_label"]
     gmm_bt_metric = result["gmm_bt_metric"]
+    gmm_bt_size1 = result["gmm_bt_size1"]
+    gmm_bt_size2 = result["gmm_bt_size2"]
+    gmm_bt_unique_label = result["gmm_bt_unique_label"]
     gmm_tt_metric = result["gmm_tt_metric"]
+    gmm_tt_size1 = result["gmm_tt_size1"]
+    gmm_tt_size2 = result["gmm_tt_size2"]
+    gmm_tt_unique_label = result["gmm_tt_unique_label"]
     gmm_td_metric = result["gmm_td_metric"]
+    gmm_td_size1 = result["gmm_td_size1"]
+    gmm_td_size2 = result["gmm_td_size2"]
+    gmm_td_unique_label = result["gmm_td_unique_label"]
+
+
     beta_ransac_tracks = result["beta_ransac_tracks"]
     beta_ransac_counts = result["beta_ransac_counts"]
     beta_ransac = result["beta_ransac"]
@@ -236,6 +320,8 @@ def fill_event_data_to_tree(result, event_data):
     ransac_track_comp.clear()
     ransac_ari.clear()
     ransac_filtered_ari.clear()
+    ransac_labels_info.clear()
+    ransac_labels_counts.clear()
     ransac_angles.clear()
     ransac_phi_angles.clear()
     ransac_inter.clear()
@@ -246,10 +332,16 @@ def fill_event_data_to_tree(result, event_data):
     gmm_track_comp.clear()
     gmm_ari.clear()
     gmm_filtered_ari.clear()
+    gmm_labels_info.clear()
+    gmm_labels_counts.clear()
     gmm_ari_pval.clear()
     gmm_filtered_ari_pval.clear()
+    p_value_labels_info.clear()
+    p_value_labels_counts.clear()
     gmm_ari_cdist.clear()
     gmm_filtered_ari_cdist.clear()
+    cdist_labels_info.clear()
+    cdist_labels_counts.clear()
     gmm_angles.clear()
     gmm_phi_angles.clear()
     gmm_inter.clear()
@@ -260,9 +352,23 @@ def fill_event_data_to_tree(result, event_data):
     gmm_min_res.clear()
     gmm_min_angle.clear()
     gmm_bb_metric.clear()
+    gmm_bb_size1.clear()
+    gmm_bb_size2.clear()
+    gmm_bb_unique_label.clear()
     gmm_bt_metric.clear()
+    gmm_bt_size1.clear()
+    gmm_bt_size2.clear()
+    gmm_bt_unique_label.clear()
     gmm_tt_metric.clear()
+    gmm_tt_size1.clear()
+    gmm_tt_size2.clear()
+    gmm_tt_unique_label.clear()
     gmm_td_metric.clear()
+    gmm_td_size1.clear()
+    gmm_td_size2.clear()
+    gmm_td_unique_label.clear()
+
+
     beta_ransac_tracks.clear()
     beta_ransac_counts.clear()
     beta_ransac.clear()
@@ -353,16 +459,32 @@ def fill_event_data_to_tree(result, event_data):
         gmm_phi_angles.push_back(phi_angle)
 
     for metric in event_data.gmm["beam_beam_metric"].values():
-        gmm_bb_metric.push_back(metric)
+        p_value, size1, size2, unique_gmm_label = metric
+        gmm_bb_metric.push_back(p_value)
+        gmm_bb_size1.push_back(size1)
+        gmm_bb_size2.push_back(size2)
+        gmm_bb_unique_label.push_back(unique_gmm_label)
 
     for metric in event_data.gmm["track_track_metric"].values():
-        gmm_tt_metric.push_back(metric)
+        p_value, size1, size2, unique_gmm_label = metric
+        gmm_tt_metric.push_back(p_value)
+        gmm_tt_size1.push_back(size1)
+        gmm_tt_size2.push_back(size2)
+        gmm_tt_unique_label.push_back(unique_gmm_label)
 
     for metric in event_data.gmm["beam_track_metric"].values():
-        gmm_bt_metric.push_back(metric)
+        p_value, size1, size2, unique_gmm_label = metric
+        gmm_bt_metric.push_back(p_value)
+        gmm_bt_size1.push_back(size1)
+        gmm_bt_size2.push_back(size2)
+        gmm_bt_unique_label.push_back(unique_gmm_label)
 
     for metric in event_data.gmm["track_dist_metric"].values():
-        gmm_td_metric.push_back(metric)
+        p_value, size1, size2, unique_gmm_label = metric
+        gmm_td_metric.push_back(p_value)
+        gmm_td_size1.push_back(size1)
+        gmm_td_size2.push_back(size2)
+        gmm_td_unique_label.push_back(unique_gmm_label)
 
     # Loop through the outer dictionary
     for key1, sub_dict in event_data.ransac["beta"].items():
@@ -384,6 +506,21 @@ def fill_event_data_to_tree(result, event_data):
             beta_gmm.push_back(key2)   # Store inner dictionary keys
             beta_gmm_angle.push_back(value)  # Store inner dictionary values
 
+    for labels, counts in event_data.ransac['label_info'].items():
+            ransac_labels_info.push_back(labels)
+            ransac_labels_counts.push_back(counts)
+
+    for labels, counts in event_data.gmm['label_info'].items():
+            gmm_labels_info.push_back(labels)
+            gmm_labels_counts.push_back(counts)
+
+    for labels, counts in event_data.gmm['label_info_pval'].items():
+            p_value_labels_info.push_back(labels)
+            p_value_labels_counts.push_back(counts)
+
+    for labels, counts in event_data.gmm['label_info_cdist'].items():
+            cdist_labels_info.push_back(labels)
+            cdist_labels_counts.push_back(counts)
 
     # Fill the tree with the data
     tree.Fill()

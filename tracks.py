@@ -35,9 +35,10 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.cluster import DBSCAN
 from kneed import KneeLocator
 from regularize import Regularize
-from libraries import DataArray
+from libraries import DataArray, RunParameters, VolumeBoundaries, SCAN, Optimize, FileNames, Reference
 from collections import defaultdict
 import warnings
+from energy import Energy
 
 np.random.seed(42)
 
@@ -45,25 +46,24 @@ np.random.seed(42)
 # Input arguments
 #######################################
 
-# excitation_energies = range(0, 31, 5)
-# cm_angles = ["0_2", "0_3", "0_5", "1", "1_2", "1_5", "2", "3", "4", "5", "6", "7"]
 arguments = sys.argv
 input_string = arguments[1]
 split_strings = input_string.split('@')
 excitation_energies=[split_strings[0]]
 cm_angles=[split_strings[1]]
 path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/DATA/simulation/5000/"
-plots = True
-sim = True
-debug=False
-final_plots_flag = False
 event_start = int(split_strings[2])
 event_end = int(split_strings[3])
-save_final_data=False
-with_missing_pads = True
-batch_mode = False
-save_to_root = False
-save_python_figures = False
+
+plots = RunParameters.plots.value
+sim = RunParameters.sim.value
+debug = RunParameters.debug.value
+final_plots_flag = RunParameters.final_plots_flag.value
+save_final_data = RunParameters.save_final_data.value
+with_missing_pads = RunParameters.with_missing_pads.value
+batch_mode = RunParameters.batch_mode.value
+save_to_root = RunParameters.save_to_root.value
+save_python_figures = RunParameters.save_python_figures.value
 
 np.set_printoptions(threshold=np.inf)
 
@@ -93,7 +93,7 @@ table = np.loadtxt("LT_GANIL_NewCF_marine.dat")
 z_conversion_factor = drift_velocity_volume*(10.0/1000.0)
 x_conversion_factor = 2.0  # units[mm]
 y_conversion_factor = 2.0  # units[mm]
-missing_pads_info = "HitResponses.dat"
+missing_pads_info = FileNames.MISSING_PADS.value
 missed_pads = np.loadtxt(missing_pads_info)
 x_pos_raw = missed_pads[:, 0]
 y_pos_raw = missed_pads[:, 1]
@@ -109,24 +109,6 @@ z_end_bin = 28000 * z_conversion_factor
 pixel_size_mm = 2
 line_length = 100
 transparency = 0.7
-beam_zone_low = 122
-beam_zone_high = 132
-
-class VolumeBoundaries(Enum):
-    VOLUME_MIN = 10
-    VOLUME_MAX = 246
-    BEAM_ZONE_MIN = 122
-    BEAM_ZONE_MAX = 132
-    BEAM_CENTER = 128
-
-class SCAN(Enum):
-    N_PROC = 1
-    NN_NEIGHBOR = 2
-    NN_RADIUS = 20.0
-    DB_MIN_SAMPLES = 4
-    SENSITIVITY = 3
-    EPS_THRESHOLD = 5
-    EPS_MODE = 10
 
 #######################################
 # Graphics
@@ -147,7 +129,9 @@ ax10 = axs[2,2]
 ax11 = axs[3,0]
 ax12 = axs[3,1]
 ax13 = axs[3,2]
-
+ax14 = axs[1,3]
+ax15 = axs[2,3]
+ax16 = axs[3,3]
 
 # Function to add rectangle patches for each point
 def add_rectangles(ax, xyz_data, labels, cmap, proj, colorbarFlag, discrete=False):
@@ -236,6 +220,9 @@ update_clear(ax10)
 update_clear(ax11)
 update_clear(ax12)
 update_clear(ax13)
+update_clear(ax14)
+update_clear(ax15)
+update_clear(ax16)
 
 next_pressed = False
 # Create a button for going to the next entry
@@ -300,7 +287,6 @@ def angle_between(v1, v2):
     # Return angle in degrees
     return np.degrees(np.arccos(cos_theta))
 
-
 def calculate_phi_angle(v, beam_v):
     """
     Calculate the angle (in degrees) of a single vector in the YZ plane
@@ -341,8 +327,6 @@ def calculate_phi_angle(v, beam_v):
 
     return angle
 
-
-#Function to find the peak in Z spectrum
 def get_gpeaks(h, lrange, sigma, opt, thres, niter):
         s = TSpectrum(niter)
         h.GetXaxis().SetRange(lrange[0], lrange[1])
@@ -357,7 +341,6 @@ def get_gpeaks(h, lrange, sigma, opt, thres, niter):
         except:
             return [[beam_center_time, 10]]
 
-#Function to get beam entrance time
 def get_beam_center(entries):
     z_proj = TH1F('z_proj', 'z_proj', 20000, 0, 20000)
     z_proj.Reset()
@@ -404,7 +387,6 @@ def get_beam_center(entries):
         plt.draw()
     return beam_c
 
-# Function to read the input file into the array
 def get_data_array(beam_center, entries, event_info):
     global axs
     data_points = []
@@ -486,7 +468,6 @@ def get_data_array(beam_center, entries, event_info):
     # print('Checking plot return')
     return data, incoming_labels
 
-# Function to plot true labels
 def generate_true_labels(data_array, event_info):
     y_values = data_array[:, DataArray.Y.value]
     labels = np.where((y_values >= VolumeBoundaries.BEAM_ZONE_MIN.value) & (y_values < VolumeBoundaries.BEAM_ZONE_MAX.value), 0, 1)
@@ -531,7 +512,6 @@ def generate_true_labels(data_array, event_info):
         plt.draw()
     return data_array
 
-# Function to plot clusters from ransac
 def plot_ransac(data_array, event_info):
     labels = data_array[:, DataArray.ransac_labels.value]
     cmap = plt.cm.get_cmap("Dark2", len(np.unique(labels)))
@@ -554,7 +534,6 @@ def plot_ransac(data_array, event_info):
     plt.draw()
     return [colorbar4, colorbar5, colorbar6]
 
-# Function to plot the threshold distance in RANSAC
 def return_threshold_lines(start_point, direction_vector):
     # Normalize the direction vector
     direction_vector_normalized = direction_vector / np.linalg.norm(direction_vector)
@@ -585,16 +564,68 @@ def return_threshold_lines(start_point, direction_vector):
 
     return threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2
 
-# Function to plot the kinematics of RANSAC Clusters
+
+def extend_line_based_on_reference(start_point, end_point, start_point_full, end_point_full, extra_start: float = float(Reference.RANGE_EXTEND.value)):
+    """
+    Extends a 3D line segment:
+    - The start point moves back by `extra_start` mm.
+    - The end point moves forward so that the new total length is at least `20 mm` longer than the reference line.
+
+    Parameters:
+    - start_point (numpy array): Start point of the primary line (x, y, z).
+    - end_point (numpy array): End point of the primary line (x, y, z).
+    - start_point_full (numpy array): Start point of the reference line (x, y, z).
+    - end_point_full (numpy array): End point of the reference line (x, y, z).
+    - extra_start (float): Fixed extension length for the start point (default is 20 mm).
+
+    Returns:
+    - numpy array: A (2,3) array with the new extended start and end points.
+    """
+
+    # Convert to numpy arrays
+    start_point = np.array(start_point)
+    end_point = np.array(end_point)
+    start_point_full = np.array(start_point_full)
+    end_point_full = np.array(end_point_full)
+
+    # Compute the direction vector and normalize
+    direction = end_point - start_point
+    original_length = np.linalg.norm(direction)
+
+    if original_length == 0:
+        raise ValueError("Start and end points are the same. Cannot define a line.")
+
+    unit_direction = direction / original_length
+
+    # Compute the reference line length
+    reference_length = np.linalg.norm(end_point_full - start_point_full)
+
+    # Compute new total length (at least 20mm longer than reference)
+    new_total_length = reference_length + extra_start
+    extra_end = new_total_length - original_length  # Remaining extension for the end
+
+    if extra_end < 0:
+        raise ValueError("Reference line is too short to extend properly.")
+
+    # Extend start and end points
+    extended_start = start_point - extra_start * unit_direction
+    extended_end = end_point + extra_end * unit_direction
+
+    # Return as a (2,3) array
+    return np.vstack((extended_start, extended_end))
+
 def kinematics_ransac(data, fitted_models, useLineModelND):
-    data = add_filters(data, model= int(DataArray.ransac_labels.value))
     # Define the beam line endpoints
     data = data[data[:, DataArray.ransac_labels.value] != 20]
+    data = add_filters(data, model= int(DataArray.ransac_labels.value))
     lab_angles_initial = {}
     intersections_initial = {}
     phi_angles_initial = {}
     start_point_initial = {}
     end_point_initial = {}
+    ranges_initial = {}
+    energy_initial = {}
+
     ransac_labels = np.unique(data[:, DataArray.ransac_labels.value])
     for label in ransac_labels:
         # Get the points corresponding to the current label
@@ -609,44 +640,57 @@ def kinematics_ransac(data, fitted_models, useLineModelND):
         # Process clusters either above or below the beam line
         if (mean_y >= VolumeBoundaries.BEAM_ZONE_MAX.value or mean_y < VolumeBoundaries.BEAM_ZONE_MIN.value) and cluster_data.shape[0] >= 10:
             mask = (
-                (cluster_data[:, DataArray.scattered_track.value] == 1) &  # Column 8: (beam_track_flag_col) = 1
-                (cluster_data[:, DataArray.track_inside_volume.value] == 1) &  # Column 9: (volume_check_flag_col) = 1
-                (cluster_data[:, DataArray.vertex_inside_volume.value] == 1) &  # Column 10: (intersection_flag_col) = 1
-                ((cluster_data[:, DataArray.side_of_track.value] == 1) | (cluster_data[:, DataArray.side_of_track.value] == -1)) &  # Column 11: (side_flag_col) = 1 or -1
-                ((cluster_data[:, DataArray.closest_track.value] == 1) | (cluster_data[:, DataArray.closest_track.value] == -1)) & # Column 12: (proximity_flag_col) = 1 or -1
+                (cluster_data[:, DataArray.scattered_track.value] == 1) &
+                (cluster_data[:, DataArray.track_inside_volume.value] == 1) &
+                (cluster_data[:, DataArray.vertex_inside_volume.value] == 1) &
+                ((cluster_data[:, DataArray.side_of_track.value] == 1) | (cluster_data[:, DataArray.side_of_track.value] == -1)) &  # Column : (side_flag_col) = 1 or -1
+                ((cluster_data[:, DataArray.closest_track.value] == 1) | (cluster_data[:, DataArray.closest_track.value] == -1)) & # Column: (proximity_flag_col) = 1 or -1
                 (cluster_data[:, DataArray.end_point_above_beam_zone.value] == 1) # Column 12: Track End point above the beam zone
             )
-            if cluster_data[mask, :3].size > 0:
+            cut_data = cluster_data[mask, :3]
+            if cut_data.size > 0:
                 # Fill the lab angles and intersections based on first PCA fit.
-                end_point, start_point, beam_vector, dirVecTrackNorm, track_mean, closest_points = get_directions(cluster_data[mask, :3])
-                track_vector = end_point - start_point
-                lab_angle = angle_between(track_vector, beam_vector)
-                phi_angle = calculate_phi_angle(track_vector, beam_vector)
-                intersection_point = closest_point_on_line1(start_point, track_vector, np.array([0,128,128]), beam_vector)
-                lab_angles_initial[label] = round(lab_angle, 2)
-                intersections_initial[label] = intersection_point
-                start_point_initial[label] = start_point
-                end_point_initial[label] = end_point
-                phi_angles_initial[label] = phi_angle
+                end_point_full, start_point_full, beam_vector_full, dirVecTrackNorm_full, track_mean_full, closest_points_full = get_directions(cut_data)
+                track_vector_full = end_point_full - start_point_full
+                intersection_point_full = closest_point_on_line1(start_point_full, track_vector_full, np.array([0,128,128]), beam_vector_full)
+                distances_from_start = np.linalg.norm(closest_points_full - start_point_full, axis=1)
+                mask_beta = (distances_from_start >= 0) & (distances_from_start <= Optimize.BETA.value)
+                filtered_data_beta = cut_data[mask_beta, :]
+                if len(filtered_data_beta) > 1:
+                    end_point_beta, start_point_beta, beam_vector_beta, dirVecTrackNorm_beta, track_mean_beta, closest_points_beta = get_directions(filtered_data_beta)
+                    track_vector_beta = end_point_beta - start_point_beta
+                    lab_angle_beta = angle_between(track_vector_beta, beam_vector_beta)
+                    phi_angle_beta = calculate_phi_angle(track_vector_beta, beam_vector_beta)
+                    intersection_point_beta = closest_point_on_line1(start_point_beta, track_vector_beta, np.array([0,128,128]), beam_vector_beta)
+                    lab_angles_initial[label] = round(lab_angle_beta, 2)
+                    intersections_initial[label] = intersection_point_beta
+                    start_point_initial[label] = start_point_beta
+                    end_point_initial[label] = end_point_beta
+                    phi_angles_initial[label] = phi_angle_beta
+                    endpts = extend_line_based_on_reference(start_point_beta, end_point_beta, start_point_full, end_point_full, extra_start=float(Reference.RANGE_EXTEND.value))
                 if plots:
-                    plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection_point, closest_points, ax8, ax9, ax10)
+                    plot_lines(track_mean_full, dirVecTrackNorm_full, start_point_full, end_point_full, intersection_point_full, closest_points_full, ax8, ax9, ax10, color='blue', s=400)
+                    plot_lines(track_mean_beta, dirVecTrackNorm_beta, start_point_beta, end_point_beta, intersection_point_beta, closest_points_beta, ax8, ax9, ax10, color='green', s=200)
+                    plot_lines(track_mean_beta, dirVecTrackNorm_beta, endpts[0, :], endpts[1, :], intersection_point_beta, closest_points_beta, ax8, ax9, ax10, color='red', s=100)
                     if not useLineModelND:
-                        threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2 = return_threshold_lines(track_mean, dirVecTrackNorm)
-                        plot_threshold_lines(track_mean, dirVecTrackNorm, threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2)
+                        threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2 = return_threshold_lines(track_mean_full, dirVecTrackNorm_full)
+                        plot_threshold_lines(track_mean_full, dirVecTrackNorm_full, threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2)
                     else:
                         model_params = fitted_models[label].params
                         threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2 = return_threshold_lines(np.array(model_params[0]), np.array(model_params[1]))
                         plot_threshold_lines(np.array(model_params[0]), np.array(model_params[1]), threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2)
-                # print('Track inside Volume', start_point, end_point, intersection_point, np.unique(cluster_data[:, 10]), np.unique(cluster_data[:, 11]), np.unique(cluster_data[:, 12]))
             else:
                 end_point, start_point, beam_vector, dirVecTrackNorm, track_mean, closest_points = get_directions(cluster_data[:, :3])
                 track_vector = end_point - start_point
                 intersection_point = closest_point_on_line1(start_point, track_vector, np.array([0,128,128]), beam_vector)
-                # print('Track not inside Volume', start_point, end_point, intersection_point, np.unique(cluster_data[:, 10]), np.unique(cluster_data[:, 11]), np.unique(cluster_data[:, 12]))
-                # if 0 in np.unique(cluster_data[:, 12]):
-                #     print('Track End point inside')
                 if plots:
-                    plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection_point, closest_points, ax8, ax9, ax10)
+                    print(np.unique(cluster_data[:, DataArray.scattered_track.value]),
+                          np.unique(cluster_data[:, DataArray.track_inside_volume.value]),
+                          np.unique(cluster_data[:, DataArray.vertex_inside_volume.value]),
+                          np.unique(cluster_data[:, DataArray.side_of_track.value]),
+                          np.unique(cluster_data[:, DataArray.closest_track.value]),
+                          np.unique(cluster_data[:, DataArray.end_point_above_beam_zone.value]))
+                    plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection_point, closest_points, ax8, ax9, ax10, color='black', s = 500)
                     if not useLineModelND:
                         threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2 = return_threshold_lines(track_mean, dirVecTrackNorm)
                         plot_threshold_lines(track_mean, dirVecTrackNorm, threshold_line_above1, threshold_line_below1, threshold_line_above2, threshold_line_below2)
@@ -862,7 +906,7 @@ def kinematics_gmm(data, responsibilities, event_info):
             gmm_indices = np.where(data[:, DataArray.merge_cdist.value] == label)[0]
             gmm_labels_raw = np.unique(data[gmm_indices, DataArray.gmm_labels.value])
             gmm_labels_raw = np.array(gmm_labels_raw, dtype=int)
-            # res = [0.1]
+            res = [0.025]
             cut_data = cluster_data[mask, :3]
             if cut_data.size > 0:
                 end_point_fnew, start_point_fnew, beam_vector_fnew, dirVecTrackNorm_fnew, track_mean_fnew, closest_points_fnew = get_directions(cut_data)
@@ -1210,7 +1254,6 @@ def add_filters(data, model):
             # Determine proximity flags (Column 12) for closest track to beam zone on each side
 
             side_tracks['above'].append((cluster_data, track_indices)) if mean_y > VolumeBoundaries.BEAM_ZONE_MAX.value else side_tracks['below'].append((cluster_data, track_indices))
-
     for side, tracks in side_tracks.items():
         if tracks:
             # Find the closest track to the beam zone on this side
@@ -1233,20 +1276,20 @@ def add_filters(data, model):
     return data_with_flags
 
 # Function to add plot lines
-def plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection_point, closest_points, ax11, ax12, ax13):
+def plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection_point, closest_points, ax11, ax12, ax13, color = 'blue', s=400):
     line_length = 100  # Adjust line length as needed
     line_start = track_mean - line_length * dirVecTrackNorm
     line_end = track_mean + line_length * dirVecTrackNorm
-    ax11.scatter(start_point[0], start_point[1], color='blue', marker='x', label='Start Point', s=500)
-    ax11.scatter(end_point[0], end_point[1], color='green', marker='x', label='End Point', s=200)
+    ax11.scatter(start_point[0], start_point[1], color=color, marker='x', label='Start Point', s=s)
+    ax11.scatter(end_point[0], end_point[1], color=color, marker='x', label='End Point', s=int(s/2))
     # ax11.set_xlim(start_point[0]-10, end_point[0]+10)
     # ax11.set_ylim(start_point[1]-10, end_point[1]+10)
-    ax12.scatter(start_point[1], start_point[2], color='blue', marker='x', label='Start Point', s=500)
-    ax12.scatter(end_point[1], end_point[2], color='green', marker='x', label='End Point', s=200)
+    ax12.scatter(start_point[1], start_point[2], color=color, marker='x', label='Start Point', s=s)
+    ax12.scatter(end_point[1], end_point[2], color=color, marker='x', label='End Point', s=int(s/2))
     # ax12.set_xlim(start_point[1]-10, end_point[1]+10)
     # ax12.set_ylim(start_point[2]-10, end_point[2]+10)
-    ax13.scatter(start_point[0], start_point[2], color='blue', marker='x', label='Start Point', s=500)
-    ax13.scatter(end_point[0], end_point[2], color='green', marker='x', label='End Point', s=200)
+    ax13.scatter(start_point[0], start_point[2], color=color, marker='x', label='Start Point', s=s)
+    ax13.scatter(end_point[0], end_point[2], color=color, marker='x', label='End Point', s=int(s/2))
     # ax13.set_xlim(start_point[0]-10, end_point[0]+10)
     # ax13.set_ylim(start_point[2]-10, end_point[2]+10)
     ax11.plot([line_start[0], line_end[0]], [line_start[1], line_end[1]], label=f'Fitted Line')
@@ -1394,6 +1437,8 @@ def hierarchical_clustering_with_responsibilities(data_array, max_components=10)
 # Function to calculate the metrics for low energy tracks
 def calculate_metric_low_energy(data):
 
+    unique_gmm_labels = len(np.unique(data[:, DataArray.gmm_labels.value]))
+
     # Filter tracks based on flags
     scattered_tracks = data[:, DataArray.scattered_track.value] == 1  # Column 10: Scattered track
     within_volume = data[:, DataArray.track_inside_volume.value] == 1  # Column 11: Track within volume
@@ -1423,6 +1468,11 @@ def calculate_metric_low_energy(data):
         elif np.all(label_data[:, DataArray.side_of_track.value] == -1):  # Track is below (Column 13 == -1)
             tracks_below[label] = label_data[:, :4]  # x, y, z, q (first four columns)
 
+    # Check if tracks are present in either of the dictionaries
+    if not tracks_above or not tracks_below:
+        print("No valid tracks found above or below the beam")
+        return {}
+
     metrics_low_energy = {}
     for tracks_dict in (tracks_above, tracks_below):
         labels = list(tracks_dict.keys())
@@ -1436,7 +1486,10 @@ def calculate_metric_low_energy(data):
                 end_point2, start_point2, beam_vector2, dirVecTrackNorm2, track_mean2, closest_points2 = get_directions(track2)
                 dist1 = np.linalg.norm(end_point1 - start_point2)
                 dist2 = np.linalg.norm(end_point2 - start_point1)
-                metrics_low_energy[(label1, label2)] = min(dist1, dist2)
+                # Calculate the number of points in each track
+                num_points_track1 = len(track1)
+                num_points_track2 = len(track2)
+                metrics_low_energy[(label1, label2)] = (min(dist1, dist2), num_points_track1, num_points_track2, unique_gmm_labels)
 
     return metrics_low_energy
 
@@ -1483,15 +1536,13 @@ for energy in excitation_energies:
 
         if save_to_root:
             path_output = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/test/"
-            root_file = root.TFile(path_output+"gamma_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".root", "UPDATE")
+            root_file = root.TFile(path_output+"alpha_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".root", "UPDATE")
             print(root_file)
             result = create_tree_and_branches("events")
 
-        EventInfo = namedtuple('Events', ['event_id', 'verX', 'verY', 'verZ', 'dirX', 'dirY', 'dirZ', 'Eenergy', 'Elab', 'ransac', 'gmm','end_points'])
+        EventInfo = namedtuple('Events', ['event_id', 'verX', 'verY', 'verZ', 'dirX', 'dirY', 'dirZ', 'Eenergy', 'Elab', 'ransac', 'gmm', 'end_points'])
         EventInfoList = []
         exception_events = []
-
-
 
         for entries in myTree:
             try:
@@ -1665,11 +1716,11 @@ for energy in excitation_energies:
                     # print(fitted_models)
 
                     # Function to calculate p values
-                    # beam_metrics, track_metrics, beam_track_metrics = calculate_cluster_metrics(data_array, beam_zone_low, beam_zone_high)
-                    # print('Metrics')
-                    # print(beam_metrics)
-                    # print(track_metrics)
-                    # print(beam_track_metrics)
+                    beam_metrics, track_metrics, beam_track_metrics = calculate_cluster_metrics(data_array, VolumeBoundaries.BEAM_ZONE_MIN.value, VolumeBoundaries.BEAM_ZONE_MAX.value)
+                    print('Metrics')
+                    print(beam_metrics)
+                    print(track_metrics)
+                    print(beam_track_metrics)
                     beam_metrics = {}
                     track_metrics = {}
                     beam_track_metrics = {}
@@ -1686,18 +1737,31 @@ for energy in excitation_energies:
                     gmm['track_components'] = unique_track_gmm
 
 
+                    unique_values_ransac_reduced_k, counts_ransac_reduced_k = np.unique(data_array[:, DataArray.ransac_labels.value], return_counts=True)
+                    ransac_reduced_k = dict(zip(unique_values_ransac_reduced_k, counts_ransac_reduced_k))
+                    unique_values_gmm_reduced_k, counts_gmm_reduced_k = np.unique(data_array[:, DataArray.gmm_labels.value], return_counts=True)
+                    gmm_reduced_k = dict(zip(unique_values_gmm_reduced_k, counts_gmm_reduced_k))
+                    unique_values_p_value_reduced_k, counts_p_value_reduced_k = np.unique(data_array[:, DataArray.merge_p_val.value], return_counts=True)
+                    p_value_reduced_k = dict(zip(unique_values_p_value_reduced_k, counts_p_value_reduced_k))
+                    unique_values_merge_cdist_reduced_k, counts_merge_cdist_reduced_k = np.unique(data_array[:, DataArray.merge_cdist.value], return_counts=True)
+                    merge_cdist_reduced_k = dict(zip(unique_values_merge_cdist_reduced_k, counts_merge_cdist_reduced_k))
+
+
                     ransac_noise_mask = data_array[:, DataArray.ransac_labels.value] != 20  # Exclude points with label 20
                     gmm_noise_mask = data_array[:, DataArray.gmm_labels.value] != -1  # Exclude points with -1
 
                     ransac['ari'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels_sim.value], data_array[:, DataArray.ransac_labels.value]), 2)
                     ransac['filtered_ari'] = round(adjusted_rand_score(data_array[ransac_noise_mask, DataArray.true_labels_sim.value], data_array[ransac_noise_mask, DataArray.ransac_labels.value]), 2)
+                    ransac['label_info'] = ransac_reduced_k
                     gmm['ari'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels_sim.value], data_array[:, DataArray.gmm_labels.value]), 2)
                     gmm['filtered_ari'] = round(adjusted_rand_score(data_array[gmm_noise_mask, DataArray.true_labels_sim.value], data_array[gmm_noise_mask, DataArray.gmm_labels.value]), 2)
+                    gmm['label_info'] = gmm_reduced_k
                     gmm['ari_pval'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels_sim.value], data_array[:, DataArray.merge_p_val.value]), 2)
                     gmm['filtered_ari_pval'] = round(adjusted_rand_score(data_array[gmm_noise_mask, DataArray.true_labels_sim.value], data_array[gmm_noise_mask, DataArray.merge_p_val.value]), 2)
+                    gmm['label_info_pval'] = p_value_reduced_k
                     gmm['ari_cdist'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels_sim.value], data_array[:, DataArray.merge_cdist.value]), 2)
                     gmm['filtered_ari_cdist'] = round(adjusted_rand_score(data_array[gmm_noise_mask, DataArray.true_labels_sim.value], data_array[gmm_noise_mask, DataArray.merge_cdist.value]), 2)
-
+                    gmm['label_info_cdist'] = merge_cdist_reduced_k
 
 
                     # print("ARI Indices", ransac['ari'], ransac['filtered_ari'], gmm['ari'], gmm['filtered_ari'], gmm['ari_pval'], gmm['filtered_ari_pval'], gmm['ari_cdist'], gmm['filtered_ari_cdist'])
