@@ -30,6 +30,11 @@ class RunParameters(Enum):
     batch_mode = False
     save_to_root = False
     save_python_figures = False
+    optimize_alpha = True
+    optimize_beta = False
+    optimize_gamma = False
+    optimize_cdist = True
+    optimize_pij = True
 
 class VolumeBoundaries(Enum):
     VOLUME_MIN = 10
@@ -48,12 +53,43 @@ class SCAN(Enum):
     EPS_MODE = 10
 
 class Optimize(Enum):
-    ALPHA = 36.5/100
-    BETA = 40
+    ALPHA = 36.5/100 #percentage
+    ALPHA_RANGE_LOW = 10/100
+    ALPHA_RANGE_HIGH = 90/100
+    ALPHA_STEPS = 1000
+    BETA = 40 #mm
+    BETA_RANGE_LOW = 10 #mm
+    BETA_RANGE_HIGH = 100 #mm
+    BETA_STEPS = 1 #mm
+    GAMMA = 2.5/100
+
 
 class FileNames(Enum):
     CALIBRATION_PADS = 'pad_calibration_actar.txt'
     MISSING_PADS = 'HitResponses.dat'
+    CONVERSION_TABLE = 'LT_GANIL_NewCF_marine.dat'
 
 class Reference(Enum):
-    RANGE_EXTEND = 20
+    RANGE_EXTEND = 40
+    RANGE_BIN_SIZE = 2
+    RANGE_BIN_PER = 20
+    AREA_TOTAL_PAD = 4
+    LINE_LENGTH_THRESHOLD = Optimize.BETA.value  # Threshold to define smaller or larger tracks
+    SAVITZKY_GOLAY_WINDOW_LARGE = 7  # Window Length for Savitzky Golay Filter for large tracks
+    SAVITZKY_GOLAY_WINDOW_SMALL = 5  # Window Length for Savitzky Golay Filter for small tracks
+    THRESHOLD_PEAKS = 0.25
+
+class ConversionFactors(Enum):
+    DRIFT_VELOCITY = 1.16  # units [cm/us]
+    Z_CONVERSION_FACTOR = DRIFT_VELOCITY * (10.0 / 1000.0)  # mm/us
+    X_CONVERSION_FACTOR = 2.0  # mm
+    Y_CONVERSION_FACTOR = 2.0  # mm
+    NBINS_X = 128
+    X_START_BIN = 0 * X_CONVERSION_FACTOR
+    X_END_BIN = 128 * X_CONVERSION_FACTOR
+    NBINS_Y = 128
+    Y_START_BIN = 0 * Y_CONVERSION_FACTOR
+    Y_END_BIN = 128 * Y_CONVERSION_FACTOR
+    NBINS_Z = 28000
+    Z_START_BIN = 0 * Z_CONVERSION_FACTOR
+    Z_END_BIN = 28000 * Z_CONVERSION_FACTOR
