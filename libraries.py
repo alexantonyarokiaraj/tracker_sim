@@ -22,19 +22,21 @@ class DataArray(Enum):
 
 class RunParameters(Enum):
     sim = True
-    plots = True
+    plots = False
     debug=False
     final_plots_flag = False
     save_final_data=False
     with_missing_pads = True
-    batch_mode = False
-    save_to_root = False
+    batch_mode = True
+    save_to_root = True
     save_python_figures = False
     optimize_alpha = True
     optimize_beta = False
     optimize_gamma = False
     optimize_cdist = True
     optimize_pij = True
+    save_root_file = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/alpha/"
+    tag = "alpha"
 
 class VolumeBoundaries(Enum):
     VOLUME_MIN = 10
