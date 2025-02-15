@@ -37,6 +37,7 @@ class RunParameters(Enum):
     optimize_pij = True
     save_root_file = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/alpha/"
     tag = "alpha"
+    exc_file_name = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/alpha/exceptions/"
 
 class VolumeBoundaries(Enum):
     VOLUME_MIN = 10

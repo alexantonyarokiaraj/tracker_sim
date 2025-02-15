@@ -1918,8 +1918,8 @@ for energy in excitation_energies:
             print('Saving to ROOT File')
             result["tree"].Write()
             root_file.Close()
-            exceptions_output_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/exceptions/"
-            exceptions_output_file = path_output+"exc_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".npy"
+            exceptions_output_path = RunParameters.exc_file_name.value
+            exceptions_output_file = path_output+RunParameters.tag.value+"_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".npy"
             np.save(exceptions_output_file, np.array(exception_events))
         # Define histogram parameters
         if plots:
