@@ -262,8 +262,8 @@ def get_yz_min_max(data):
         raise ValueError("Data must have at least three columns (X, Y, Z).")
 
     # Extract Y and Z columns
-    y_values = data[:, 1]
-    z_values = data[:, 2]
+    y_values = data[:, DataArray.Y.value]
+    z_values = data[:, DataArray.Z.value]
 
     # Compute min and max
     y_min, y_max = np.min(y_values), np.max(y_values)
@@ -1919,7 +1919,8 @@ for energy in excitation_energies:
             result["tree"].Write()
             root_file.Close()
             exceptions_output_path = RunParameters.exc_file_name.value
-            exceptions_output_file = path_output+RunParameters.tag.value+"_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".npy"
+            exceptions_output_file = exceptions_output_path+RunParameters.tag.value+"_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".npy"
+            print(exceptions_output_file)
             np.save(exceptions_output_file, np.array(exception_events))
         # Define histogram parameters
         if plots:
