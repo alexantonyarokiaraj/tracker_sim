@@ -28,16 +28,18 @@ class RunParameters(Enum):
     save_final_data=False
     with_missing_pads = True
     batch_mode = True
-    save_to_root = True
+    save_to_root = False
     save_python_figures = False
     optimize_alpha = True
     optimize_beta = False
     optimize_gamma = False
-    optimize_cdist = True
-    optimize_pij = True
-    save_root_file = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/alpha/"
-    tag = "alpha"
-    exc_file_name = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/alpha/exceptions/"
+    optimize_cdist = False
+    optimize_pij = False
+    save_root_file = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/test/"
+    tag = "test"
+    exc_file_name = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/alpha/test/"
+    range_lookup_table = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/LookupTable_e780_58Ni_68Ni_Alex.xlsx"
+    range_energy_conversion_sheet = "range_energy_he_he_cf4_mixed"
 
 class VolumeBoundaries(Enum):
     VOLUME_MIN = 10

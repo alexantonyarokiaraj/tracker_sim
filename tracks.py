@@ -1809,6 +1809,7 @@ for energy in excitation_energies:
                     gmm['phi_angles'] = phi_angle_gmm
                     if RunParameters.optimize_alpha.value:
                         gmm['alpha_op'] = gmm_ranges_initial
+                        print(gmm_ranges_initial)
                     else:
                         gmm['alpha op'] = {}
 
