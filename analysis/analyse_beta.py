@@ -1,9 +1,11 @@
+# Code to analyse beta
+
 import ROOT
 import numpy as np
 
 # Define arrays for excitation energy and cm angle
 excitation_energies = [10]  # Example values
-cm_angles = [1,2,3,4,5]  # Example values
+cm_angles = [4]  # Example values
 benchmark_range = 40  # The range used as a benchmark for track selection
 
 # Loop over excitation energy and cm angle
@@ -39,7 +41,7 @@ for energy in excitation_energies:
         h_gmm_start_z = ROOT.TH1F("h_gmm_start_z", "gmm_start Z;gmm_start_z;Counts", 256, 0, 256)
 
         # Histograms for gmm_end (x, y, z)
-        h_gmm_end_x = ROOT.TH1F("h_gmm_end_x", "gmm_end X;gmm_end_x;Counts", 256, 0, 256)
+        h_gmm_end_x = ROOT.TH1F("h_gmm_end_x", "gmm_end X;gmm_end_x;Counts", 256, -256, 256)
         h_gmm_end_y = ROOT.TH1F("h_gmm_end_y", "gmm_end Y;gmm_end_y;Counts", 256, 0, 256)
         h_gmm_end_z = ROOT.TH1F("h_gmm_end_z", "gmm_end Z;gmm_end_z;Counts", 256, 0, 256)
 
@@ -145,7 +147,7 @@ for energy in excitation_energies:
 
 
                 if len(event.gmm_end) == 3:
-                    h_gmm_end_x.Fill(event.gmm_end[0])
+                    h_gmm_end_x.Fill(event.gmm_end[0]-event.gmm_start[0])
                     h_gmm_end_y.Fill(event.gmm_end[1])
                     h_gmm_end_z.Fill(event.gmm_end[2])
 
@@ -207,7 +209,7 @@ for energy in excitation_energies:
             for angle in angles_np:
                 histograms[range_key].Fill(angle)
 
-            beta_numpy_array.append([cm_angle, range_key, histograms[range_key].GetMean(), histograms[range_key].GetStdDev()])
+            # beta_numpy_array.append([cm_angle, range_key, histograms[range_key].GetMean(), histograms[range_key].GetStdDev()])
 
 
         root_file_1.Close()

@@ -1030,6 +1030,8 @@ def kinematics_gmm(data, responsibilities, event_info):
                         ranges[alpha] = (ran_end_, ran_max_)
                     ranges_initial[label] = ranges
                 r2d, sd, ran_end_, en_end_, ran_max_, en_max_, charge_profile_x, charge_profile_y, charge_profile_x_s, charge_profile_y_s = en.energy_weighted(Optimize.ALPHA.value, new_position, fit_energy_, line_vector_start_3d, unit_vector_3d, line_length_2d, line_vector_end_3d, histogram_array_new)
+                print('Energy Loss Profile')
+                print(((en_max_-en_end_)-(ran_end_-ran_max_))/en_max_)
                 ranges_final[label] = ran_end_
                 print('Lowest Angle, Threshold', round(angle_between(track_vector_resp, beam_vector_resp), 2), closest_threshold*100)
                 if plots:

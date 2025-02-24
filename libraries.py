@@ -58,10 +58,10 @@ class SCAN(Enum):
     EPS_MODE = 10
 
 class Optimize(Enum):
-    ALPHA = 36.5/100 #percentage
-    ALPHA_RANGE_LOW = 10/100
-    ALPHA_RANGE_HIGH = 90/100
-    ALPHA_STEPS = 1000
+    ALPHA = 28.5/100 #percentage
+    ALPHA_RANGE_LOW = 50/100
+    ALPHA_RANGE_HIGH = 50/100
+    ALPHA_STEPS = 1
     BETA = 40 #mm
     BETA_RANGE_LOW = 10 #mm
     BETA_RANGE_HIGH = 100 #mm

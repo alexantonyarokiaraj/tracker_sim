@@ -77,8 +77,8 @@ def is_inside_volume(vertex_x, vertex_y, vertex_z):
 
 
 # Define excitation energy and CM values
-excitation_energies = [0,5,10,15,20,25,30]
-cm_values = [1, 2, 3, 4, 5]
+excitation_energies = [10]
+cm_values = [1,2,3,4,5]
 
 
 # Dictionary to store graphs for each (ex, cm) combination
