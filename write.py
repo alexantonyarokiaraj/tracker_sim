@@ -50,6 +50,9 @@ def create_tree_and_branches(tree_name):
     gmm_filtered_ari_cdist = ROOT.std.vector("float")()
     cdist_labels_info = ROOT.std.vector("int")()
     cdist_labels_counts = ROOT.std.vector("int")()
+    cdist_threshold_value = ROOT.std.vector("float")()
+    cdist_threshold_scattered = ROOT.std.vector("float")()
+    cdist_threshold_total = ROOT.std.vector("float")()
     gmm_angles = ROOT.std.vector("float")()
     gmm_ranges = ROOT.std.vector("float")()
     gmm_ranges_alpha_counts = ROOT.std.vector("int")()
@@ -134,6 +137,9 @@ def create_tree_and_branches(tree_name):
     tree.Branch("gmm_filtered_ari_cdist", gmm_filtered_ari_cdist)
     tree.Branch("cdist_labels_info", cdist_labels_info)
     tree.Branch("cdist_labels_counts", cdist_labels_counts)
+    tree.Branch("cdist_threshold_value", cdist_threshold_value)
+    tree.Branch("cdist_threshold_scattered", cdist_threshold_scattered)
+    tree.Branch("cdist_threshold_total", cdist_threshold_total)
     tree.Branch("gmm_angles", gmm_angles)
     tree.Branch("gmm_ranges", gmm_ranges)
     tree.Branch("gmm_ranges_alpha_counts", gmm_ranges_alpha_counts)
@@ -217,6 +223,9 @@ def create_tree_and_branches(tree_name):
         "gmm_filtered_ari_cdist": gmm_filtered_ari_cdist,
         "cdist_labels_info": cdist_labels_info,
         "cdist_labels_counts": cdist_labels_counts,
+        "cdist_threshold_value": cdist_threshold_value,
+        "cdist_threshold_scattered": cdist_threshold_scattered,
+        "cdist_threshold_total": cdist_threshold_total,
         "gmm_angles": gmm_angles,
         "gmm_ranges": gmm_ranges,
         "gmm_ranges_alpha_counts": gmm_ranges_alpha_counts,
@@ -303,6 +312,9 @@ def fill_event_data_to_tree(result, event_data):
     gmm_filtered_ari_cdist = result["gmm_filtered_ari_cdist"]
     cdist_labels_info = result["cdist_labels_info"]
     cdist_labels_counts = result["cdist_labels_counts"]
+    cdist_threshold_value = result["cdist_threshold_value"]
+    cdist_threshold_scattered = result["cdist_threshold_scattered"]
+    cdist_threshold_total = result["cdist_threshold_total"]
     gmm_angles = result["gmm_angles"]
     gmm_ranges = result["gmm_ranges"]
     gmm_ranges_alpha_counts = result["gmm_ranges_alpha_counts"]
@@ -385,6 +397,9 @@ def fill_event_data_to_tree(result, event_data):
     gmm_filtered_ari_cdist.clear()
     cdist_labels_info.clear()
     cdist_labels_counts.clear()
+    cdist_threshold_value.clear()
+    cdist_threshold_scattered.clear()
+    cdist_threshold_total.clear()
     gmm_angles.clear()
     gmm_ranges.clear()
     gmm_ranges_alpha_counts.clear()
@@ -558,25 +573,26 @@ def fill_event_data_to_tree(result, event_data):
             beta_gmm.push_back(key2)   # Store inner dictionary keys
             beta_gmm_angle.push_back(value)  # Store inner dictionary values
 
-    # Loop through the outer dictionary
-    for key1, sub_dict in event_data.ransac["alpha_op"].items():
-        ransac_ranges_alpha_labels.push_back(int(key1))
-        ransac_ranges_alpha_counts.push_back(len(sub_dict))
+    if event_data.ransac["alpha_op"]:
+        # Loop through the outer dictionary
+        for key1, sub_dict in event_data.ransac["alpha_op"].items():
+            ransac_ranges_alpha_labels.push_back(int(key1))
+            ransac_ranges_alpha_counts.push_back(len(sub_dict))
+            # Loop through the inner dictionary
+            for key2, value in sub_dict.items():
+                ransac_ranges_alpha.push_back(key2)   # Store inner dictionary keys
+                ransac_ranges_initial.push_back(value[0])  # Store inner dictionary values
 
-        # Loop through the inner dictionary
-        for key2, value in sub_dict.items():
-            ransac_ranges_alpha.push_back(key2)   # Store inner dictionary keys
-            ransac_ranges_initial.push_back(value[0])  # Store inner dictionary values
+    if event_data.gmm["alpha_op"]:
+        # Loop through the outer dictionary
+        for key1, sub_dict in event_data.gmm["alpha_op"].items():
+            gmm_ranges_alpha_labels.push_back(int(key1))
+            gmm_ranges_alpha_counts.push_back(len(sub_dict))
 
-    # Loop through the outer dictionary
-    for key1, sub_dict in event_data.gmm["alpha_op"].items():
-        gmm_ranges_alpha_labels.push_back(int(key1))
-        gmm_ranges_alpha_counts.push_back(len(sub_dict))
-
-        # Loop through the inner dictionary
-        for key2, value in sub_dict.items():
-            gmm_ranges_alpha.push_back(key2)   # Store inner dictionary keys
-            gmm_ranges_initial.push_back(value[0])  # Store inner dictionary values
+            # Loop through the inner dictionary
+            for key2, value in sub_dict.items():
+                gmm_ranges_alpha.push_back(key2)   # Store inner dictionary keys
+                gmm_ranges_initial.push_back(value[0])  # Store inner dictionary values
 
     for labels, counts in event_data.ransac['label_info'].items():
             ransac_labels_info.push_back(int(labels))
@@ -593,6 +609,14 @@ def fill_event_data_to_tree(result, event_data):
     for labels, counts in event_data.gmm['label_info_cdist'].items():
             cdist_labels_info.push_back(int(labels))
             cdist_labels_counts.push_back(int(counts))
+
+    for threshold, values in event_data.gmm['cdist_thresholds'].items():
+        cdist_threshold_value.push_back(threshold)
+        for i, value in enumerate(values):
+            if i==0:
+                cdist_threshold_scattered.push_back(value)
+            if i==1:
+                cdist_threshold_total.push_back(value)
 
     # Fill the tree with the data
     tree.Fill()

@@ -1728,7 +1728,7 @@ for energy in excitation_energies:
 
                     data_array = np.column_stack((data_array, gmm_labels))
                     data_array = np.column_stack((data_array, dbscan_labels))
-                    reg = Regularize(data_array=data_array, threshold=0.1, merge_type='p_value')
+                    reg = Regularize(data_array=data_array, threshold=Optimize.P_VALUE.value, merge_type='p_value')
                     final_clusters = reg.merge_labels()
                     data_array = np.column_stack((data_array, final_clusters))
                     data_array = np.column_stack((data_array, final_clusters))
@@ -1744,7 +1744,7 @@ for energy in excitation_energies:
                     if RunParameters.optimize_alpha.value:
                         ransac['alpha_op'] = ranges_initial
                     else:
-                        ransac['alpha op'] = {}
+                        ransac['alpha_op'] = {}
 
                     ransac['range'] = ranges_final
                     # print('Printing alpha RANSAC')
@@ -1777,26 +1777,48 @@ for energy in excitation_energies:
                     else:
                         metric_low_energy = {}
 
-                    highest_label = max(final_clusters)
-                    data_array_above = data_array[scattered_above, :]
-                    if data_array_above.size > 0:
-                        reg_low_energy_above = Regularize(data_array=data_array_above, low_energy_threshold=15, merge_type='cdist', func=get_directions)
-                        final_clusters_above = reg_low_energy_above.merge_labels()
-                        final_clusters_above += highest_label
-                        highest_label = max(final_clusters_above)
-                        data_array[scattered_above, DataArray.merge_cdist.value] = final_clusters_above
-                    data_array_below = data_array[scattered_below, :]
-                    if data_array_below.size > 0:
-                        reg_low_energy_below = Regularize(data_array=data_array_below, low_energy_threshold=15, merge_type='cdist', func=get_directions)
-                        final_clusters_below = reg_low_energy_below.merge_labels()
-                        final_clusters_below += highest_label
-                        data_array[scattered_below, DataArray.merge_cdist.value] = final_clusters_below
+                    original_data_array = data_array
+
+                    if RunParameters.optimize_multiplicity.value:
+                        thresholds_list = list(range(Optimize.C_DIST_RANGE_LOW.value, Optimize.C_DIST_RANGE_HIGH.value +1))
+                        thresholds_list.append(Optimize.C_DIST.value)
+                    else:
+                        thresholds_list = [Optimize.C_DIST.value]
+
+                    cdist_dict = {}
+
+                    for dist_thresholds in range(Optimize.C_DIST_RANGE_LOW.value, Optimize.C_DIST_RANGE_HIGH.value +1):
+                        highest_label = max(final_clusters)
+                        data_array = original_data_array
+
+                        data_array_above = data_array[scattered_above, :]
+                        if data_array_above.size > 0:
+                            reg_low_energy_above = Regularize(data_array=data_array_above, low_energy_threshold=dist_thresholds, merge_type='cdist', func=get_directions)
+                            final_clusters_above = reg_low_energy_above.merge_labels()
+                            final_clusters_above += highest_label
+                            highest_label = max(final_clusters_above)
+                            data_array[scattered_above, DataArray.merge_cdist.value] = final_clusters_above
+
+                        data_array_below = data_array[scattered_below, :]
+                        if data_array_below.size > 0:
+                            reg_low_energy_below = Regularize(data_array=data_array_below, low_energy_threshold=15, merge_type='cdist', func=get_directions)
+                            final_clusters_below = reg_low_energy_below.merge_labels()
+                            final_clusters_below += highest_label
+                            data_array[scattered_below, DataArray.merge_cdist.value] = final_clusters_below
+                        unique_labels_cdist = np.unique(data_array[:, DataArray.merge_cdist.value])
+                        filtered_data = data_array[data_array[:, DataArray.scattered_track.value] == 1]
+                        unique_labels_g, counts_g = np.unique(filtered_data[:, DataArray.merge_cdist.value], return_counts=True)
+                        valid_labels = unique_labels_g[counts_g > 15]
+                        cdist_dict[dist_thresholds] = (len(valid_labels), len(unique_labels_cdist))
+
+                    # if RunParameters.optimize_multiplicity.value:
+                    #     print('Multiplicity Distances')
+                    #     print(cdist_dict)
 
                     gmm['components'] = n_comp
 
                     if plots:
                         colorbars_gmm = plot_gmm(data_array, event_info)
-
 
                     angles_gmm, intersections_gmm, angles_minimize_gmm, start_point_gmm, end_point_gmm, closest_resp, closest_angle, phi_angle_gmm, data_with_filters, gmm_ranges_initial, gmm_ranges_final = kinematics_gmm(data_array, responsibilities, event_info)
 
@@ -1813,11 +1835,11 @@ for energy in excitation_energies:
                         gmm['alpha_op'] = gmm_ranges_initial
                         print(gmm_ranges_initial)
                     else:
-                        gmm['alpha op'] = {}
+                        gmm['alpha_op'] = {}
 
                     gmm['range'] = gmm_ranges_final
                     gmm['track_dist_metric'] = metric_low_energy
-
+                    gmm['cdist_thresholds'] = cdist_dict
 
                     # print('Printing alpha GMM')
                     # print(gmm_ranges_final)
