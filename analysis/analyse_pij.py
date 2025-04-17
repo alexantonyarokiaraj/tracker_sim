@@ -4,14 +4,14 @@ import os
 import sys
 
 # Create histograms
-hist_bb = ROOT.TH1F("hist_bb", "GMM BB Metric ", 100, 0, 1)
-hist_bt = ROOT.TH1F("hist_bt", "GMM BT Metric ", 100, 0, 1)
-hist_tt = ROOT.TH1F("hist_tt", "GMM TT Metric ", 100, 0, 1)
-hist_td = ROOT.TH1F("hist_td", "GMM TD Metric ", 50, 0, 100)
+hist_bb = ROOT.TH1F("hist_bb", "GMM BB Metric", 100, 0, 1)
+hist_bt = ROOT.TH1F("hist_bt", "GMM BT Metric", 100, 0, 1)
+hist_tt = ROOT.TH1F("hist_tt", "GMM TT Metric", 100, 0, 1)
+# hist_td is not needed
 
 # Define excitation energy and CM values
-excitation_energies = [0, 5, 10, 15, 20, 25]
-cm_values = [1,2,3,4,5]
+excitation_energies = [0, 5, 10, 15, 20, 25, 30]
+cm_values = [1, 2, 3, 4, 5]
 
 # Loop through excitation energy and CM combinations
 for ex in excitation_energies:
@@ -19,7 +19,7 @@ for ex in excitation_energies:
         file_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/alpha/"
         file_pattern = f"alpha_sim_5000_{ex}mev_{cm}cm_*.root"
         file_list = glob.glob(file_path + file_pattern)
-
+        print('file_pattern', file_pattern)
         chain = ROOT.TChain("events")
 
         # Add all files to the TChain
@@ -30,46 +30,53 @@ for ex in excitation_energies:
         for entry in range(chain.GetEntries()):
             chain.GetEntry(entry)
             if chain.eventid[0] > 0:
-                # Fill histograms while ensuring matching vector sizes
+                # Fill hist_bb histogram
                 if len(chain.gmm_bb_metric) == len(chain.gmm_bb_size1) == len(chain.gmm_bb_size2):
                     for i in range(len(chain.gmm_bb_metric)):
                         if chain.gmm_bb_size1[i] > 40 and chain.gmm_bb_size2[i] > 40:
                             hist_bb.Fill(chain.gmm_bb_metric[i])
 
+                # Fill hist_bt histogram
                 if len(chain.gmm_bt_metric) == len(chain.gmm_bt_size1) == len(chain.gmm_bt_size2):
                     for i in range(len(chain.gmm_bt_metric)):
                         if chain.gmm_bt_size1[i] > 10 and chain.gmm_bt_size2[i] > 10:
                             hist_bt.Fill(chain.gmm_bt_metric[i])
 
+                # Fill hist_tt histogram
                 if len(chain.gmm_tt_metric) == len(chain.gmm_tt_size1) == len(chain.gmm_tt_size2):
                     for i in range(len(chain.gmm_tt_metric)):
                         if chain.gmm_tt_size1[i] > 20 and chain.gmm_tt_size2[i] > 20:
                             hist_tt.Fill(chain.gmm_tt_metric[i])
 
-                if len(chain.gmm_td_metric) == len(chain.gmm_td_size1) == len(chain.gmm_td_size2):
-                    for i in range(len(chain.gmm_td_metric)):
-                        if chain.gmm_td_size1[i] > 10 and chain.gmm_td_size2[i] > 10:
-                            hist_td.Fill(chain.gmm_td_metric[i])
+# Assuming hist_bb, hist_bt, and hist_tt are already defined as TH1 objects
+if hist_bb.Integral() > 0:
+    hist_bb.Scale(1.0 / hist_bb.Integral())
 
-# Create canvas and draw histograms
-canvas = ROOT.TCanvas("canvas", "Histograms", 800, 800)
-canvas.Divide(2, 2)
+if hist_bt.Integral() > 0:
+    hist_bt.Scale(1.0 / hist_bt.Integral())
 
-canvas.cd(1)
+if hist_tt.Integral() > 0:
+    hist_tt.Scale(1.0 / hist_tt.Integral())
+
+# Create a canvas and plot all three histograms on the same pad
+canvas = ROOT.TCanvas("canvas", "Normalized Histograms", 800, 600)
+
+# Configure and draw the histograms
 hist_bb.SetLineColor(ROOT.kRed)
-hist_bb.Draw()
+hist_bb.Draw("HIST")
 
-canvas.cd(2)
 hist_bt.SetLineColor(ROOT.kBlue)
-hist_bt.Draw()
+hist_bt.Draw("HIST SAME")
 
-canvas.cd(3)
-hist_tt.SetLineColor(ROOT.kGreen)
-hist_tt.Draw()
+hist_tt.SetLineColor(ROOT.kGreen+2)
+hist_tt.Draw("HIST SAME")
 
-canvas.cd(4)
-hist_td.SetLineColor(ROOT.kMagenta)
-hist_td.Draw()
+# Create a legend
+legend = ROOT.TLegend(0.65, 0.70, 0.88, 0.88)
+legend.AddEntry(hist_bb, "#it{p}_{#it{ij}}^{(BB)}", "l")
+legend.AddEntry(hist_bt, "#it{p}_{#it{ij}}^{(BE)}", "l")
+legend.AddEntry(hist_tt, "#it{p}_{#it{ij}}^{(EE)}", "l")
+legend.Draw()
 
 canvas.Update()
 canvas.WaitPrimitive()

@@ -28,7 +28,7 @@ class RunParameters(Enum):
     save_final_data=False
     with_missing_pads = True
     batch_mode = True
-    save_to_root = True
+    save_to_root = False
     save_python_figures = False
     optimize_alpha = False
     optimize_beta = False
@@ -36,9 +36,9 @@ class RunParameters(Enum):
     optimize_cdist = False
     optimize_pij = False
     optimize_multiplicity = True
-    save_root_file = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/multiplicity/"
+    save_root_file = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/test/"
     tag = "mul"
-    exc_file_name = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/multiplicity/exceptions/"
+    exc_file_name = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/test/exceptions/"
     range_lookup_table = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/LookupTable_e780_58Ni_68Ni_Alex.xlsx"
     range_energy_conversion_sheet = "range_energy_he_he_cf4_mixed"
 
@@ -71,7 +71,7 @@ class Optimize(Enum):
     P_VALUE = 0.1
     C_DIST = 15
     C_DIST_RANGE_LOW = 1
-    C_DIST_RANGE_HIGH = 50
+    C_DIST_RANGE_HIGH = 100
 
 class FileNames(Enum):
     CALIBRATION_PADS = 'pad_calibration_actar.txt'

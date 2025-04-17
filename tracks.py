@@ -855,7 +855,7 @@ def fit_gmm_with_bic(data, max_components=10):
 
 # Function to plot the GMM assigned clusters
 def plot_gmm(data_array, event_info, color = 'blue', size=50):
-    labels = data_array[:, DataArray.merge_cdist.value]
+    labels = data_array[:, DataArray.merge_p_val.value]
     cmap = plt.cm.get_cmap("Dark2", len(np.unique(labels)))
     update_clear(ax11)
     update_clear(ax12)
@@ -1718,6 +1718,7 @@ for energy in excitation_energies:
                     ransac_labels, fitted_models = find_multiple_lines_ransac(data_array, max_lines=10, residual_threshold=5.0, n_iterations=1000)
                     data_array = np.column_stack((data_array, ransac_labels))
                     ransac['components'] = len(np.unique(ransac_labels))
+                    print('Number of unique ransac labels', np.unique(ransac_labels))
 
                     if plots:
                         colorbars_ransac = plot_ransac(data_array, event_info)
@@ -1777,7 +1778,7 @@ for energy in excitation_energies:
                     else:
                         metric_low_energy = {}
 
-                    original_data_array = data_array
+                    original_data_array = data_array.copy()
 
                     if RunParameters.optimize_multiplicity.value:
                         thresholds_list = list(range(Optimize.C_DIST_RANGE_LOW.value, Optimize.C_DIST_RANGE_HIGH.value +1))
@@ -1786,34 +1787,42 @@ for energy in excitation_energies:
                         thresholds_list = [Optimize.C_DIST.value]
 
                     cdist_dict = {}
+                    cdist_flag = False
 
-                    for dist_thresholds in range(Optimize.C_DIST_RANGE_LOW.value, Optimize.C_DIST_RANGE_HIGH.value +1):
-                        highest_label = max(final_clusters)
-                        data_array = original_data_array
+                    for i1 in range(len(original_data_array)):
+                        print(original_data_array[i1, DataArray.Y.value], original_data_array[i1, DataArray.scattered_track.value], original_data_array[i1, DataArray.merge_cdist.value])
+
+                    for dist_thresholds in thresholds_list:
+                        highest_label = max(final_clusters) + 1
+                        data_array = original_data_array.copy()
 
                         data_array_above = data_array[scattered_above, :]
                         if data_array_above.size > 0:
                             reg_low_energy_above = Regularize(data_array=data_array_above, low_energy_threshold=dist_thresholds, merge_type='cdist', func=get_directions)
                             final_clusters_above = reg_low_energy_above.merge_labels()
                             final_clusters_above += highest_label
-                            highest_label = max(final_clusters_above)
+                            highest_label = max(final_clusters_above) + 1
                             data_array[scattered_above, DataArray.merge_cdist.value] = final_clusters_above
 
                         data_array_below = data_array[scattered_below, :]
                         if data_array_below.size > 0:
-                            reg_low_energy_below = Regularize(data_array=data_array_below, low_energy_threshold=15, merge_type='cdist', func=get_directions)
+                            reg_low_energy_below = Regularize(data_array=data_array_below, low_energy_threshold=dist_thresholds, merge_type='cdist', func=get_directions)
                             final_clusters_below = reg_low_energy_below.merge_labels()
                             final_clusters_below += highest_label
                             data_array[scattered_below, DataArray.merge_cdist.value] = final_clusters_below
                         unique_labels_cdist = np.unique(data_array[:, DataArray.merge_cdist.value])
                         filtered_data = data_array[data_array[:, DataArray.scattered_track.value] == 1]
                         unique_labels_g, counts_g = np.unique(filtered_data[:, DataArray.merge_cdist.value], return_counts=True)
+                        print('Thresholds', dist_thresholds, unique_labels_cdist, unique_labels_g)
                         valid_labels = unique_labels_g[counts_g > 15]
                         cdist_dict[dist_thresholds] = (len(valid_labels), len(unique_labels_cdist))
+                        if dist_thresholds == 1:
+                            if len(unique_labels_cdist) == 3 and len(valid_labels) == 2:
+                                cdist_flag = True
 
-                    # if RunParameters.optimize_multiplicity.value:
-                    #     print('Multiplicity Distances')
-                    #     print(cdist_dict)
+                    if RunParameters.optimize_multiplicity.value:
+                        print('Multiplicity Distances')
+                        print(cdist_dict)
 
                     gmm['components'] = n_comp
 
@@ -1886,6 +1895,15 @@ for energy in excitation_energies:
 
                     # print('UNIQUE')
                     # print(ransac_reduced_k, gmm_reduced_k, p_value_reduced_k, merge_cdist_reduced_k)
+                    # Boolean condition: unique value is not 20 and its count > 10
+                    # mask = (unique_values_ransac_reduced_k != 20) & (counts_ransac_reduced_k > 10)
+
+                    # # Total number satisfying the condition
+                    # num_not_20 = np.sum(mask)
+
+                    # if num_not_20 > 2 and cdist_flag:
+                    #     print(f"Number of unique values != 20 with count > 10: {num_not_20}")
+                    #     print(cdist_dict)
 
                     ransac_noise_mask = data_array[:, DataArray.ransac_labels.value] != 20  # Exclude points with label 20
                     gmm_noise_mask = data_array[:, DataArray.gmm_labels.value] != -1  # Exclude points with -1
