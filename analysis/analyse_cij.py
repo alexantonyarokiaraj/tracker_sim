@@ -6,8 +6,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Define excitation energy and CM values
-excitation_energies = [0, 5, 10, 15, 20, 25, 30]
-cm_values = [1, 2, 3, 4, 5]
+# excitation_energies = [0, 5, 10, 15, 20, 25, 30]
+# cm_values = [1, 2, 3, 4, 5]
+
+excitation_energies = [10]
+cm_values = [3]
 
 # Initialize lists to store data
 distances = []
@@ -17,7 +20,7 @@ counter = 0
 # Loop through excitation energy and CM combinations
 for ex in excitation_energies:
     for cm in cm_values:
-        file_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/multiplicity/"
+        file_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/multiplicity/single/"
         file_pattern = f"mul_sim_5000_{ex}mev_{cm}cm_*.root"
         file_list = glob.glob(file_path + file_pattern)
 
@@ -44,8 +47,10 @@ for ex in excitation_energies:
             distance_vector = chain.cdist_threshold_value  # std::vector<double>
             scattered_vector = chain.cdist_threshold_scattered  # std::vector<int>
 
-            if sum(chain.cdist_threshold_scattered) > 0:
+            if chain.cdist_threshold_scattered[0] >= 1:
                 counter += 1
+            else:
+                continue
 
             # Loop through elements in the vectors
             for i in range(distance_vector.size()):
