@@ -1789,9 +1789,6 @@ for energy in excitation_energies:
                     cdist_dict = {}
                     cdist_flag = False
 
-                    for i1 in range(len(original_data_array)):
-                        print(original_data_array[i1, DataArray.Y.value], original_data_array[i1, DataArray.scattered_track.value], original_data_array[i1, DataArray.merge_cdist.value])
-
                     for dist_thresholds in thresholds_list:
                         highest_label = max(final_clusters) + 1
                         data_array = original_data_array.copy()
@@ -1813,7 +1810,6 @@ for energy in excitation_energies:
                         unique_labels_cdist = np.unique(data_array[:, DataArray.merge_cdist.value])
                         filtered_data = data_array[data_array[:, DataArray.scattered_track.value] == 1]
                         unique_labels_g, counts_g = np.unique(filtered_data[:, DataArray.merge_cdist.value], return_counts=True)
-                        print('Thresholds', dist_thresholds, unique_labels_cdist, unique_labels_g)
                         valid_labels = unique_labels_g[counts_g > 15]
                         cdist_dict[dist_thresholds] = (len(valid_labels), len(unique_labels_cdist))
                         if dist_thresholds == 1:
