@@ -864,6 +864,7 @@ def plot_gmm(data_array, event_info, color = 'blue', size=50):
     colorbar8 = add_rectangles(ax12, data_array[:, DataArray.X.value:DataArray.Z.value + 1], labels, cmap, proj = 'yz', colorbarFlag=True, discrete=True)
     colorbar9 = add_rectangles(ax13, data_array[:, DataArray.X.value:DataArray.Z.value + 1], labels, cmap, proj = 'xz', colorbarFlag=True, discrete=True)
      # Place the number of data points in the top right corner
+    print('Printing input vertices', event_info.verX, event_info.verY, event_info.verZ, event_info.dirX, event_info.dirY, event_info.dirZ, line_length)
     ax11.plot([event_info.verX, event_info.verX + line_length * event_info.dirX],[event_info.verY, event_info.verY + line_length * event_info.dirY],
                 color=color, alpha=transparency)
     ax11.scatter(event_info.verX, event_info.verY, color=color, edgecolor='black', s=size, zorder=3)  # Circle for vertex
@@ -1819,6 +1820,7 @@ for energy in excitation_energies:
                     if RunParameters.optimize_multiplicity.value:
                         print('Multiplicity Distances')
                         print(cdist_dict)
+                        # np.save('data_array.npy',data_array)
 
                     gmm['components'] = n_comp
 

@@ -77,6 +77,9 @@ axes[0].set_title("Entries with k=1 as a function of Distance")
 axes[0].legend()
 axes[0].grid()
 
+np.save('unique_distances',unique_distances)
+np.save('normalized_entries',normalized_entries)
+
 # Second subplot: Normalized counts
 axes[1].bar(unique_distances, normalized_entries, width=0.5, alpha=0.7, color="r", label="Normalized")
 axes[1].set_xlabel("Distance")

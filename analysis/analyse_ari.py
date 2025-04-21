@@ -9,7 +9,7 @@ files = []
 # Find files matching the pattern
 for ex in exc_energy:
     for cm in cm_angle:
-        file_pattern = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/ari/ari_sim_5000_{ex}mev_{cm}cm_*.root"
+        file_pattern = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/multiplicity/full/mul_sim_5000_{ex}mev_{cm}cm_*.root"
         matched_files = glob.glob(file_pattern)
         files.extend(matched_files)
 
@@ -88,8 +88,8 @@ legend.SetTextSize(0.03)  # Adjust the text size if needed
 
 # Set the legend entries with LaTeX (no `str.format()` here)
 legend.AddEntry(hist_ransac, r"\text{RANSAC}" + ", mean = {:.2f}".format(mean_ransac), "l")
-legend.AddEntry(hist_gmm_pval, r"\text{GMM}_{\left(p_{ij}\right)}" + ", mean = {:.2f}".format(mean_gmm_pval), "l")
-legend.AddEntry(hist_gmm_cdist, r"\text{GMM}_{\left(p_{ij}, c_{ij}\right)}" + ", mean = {:.2f}".format(mean_gmm_cdist), "l")
+legend.AddEntry(hist_gmm_pval, r"\mathcal{R}_{pij}" + ", mean = {:.2f}".format(mean_gmm_pval), "l")
+legend.AddEntry(hist_gmm_cdist, r"\mathcal{R}_{pij, cij}" + ", mean = {:.2f}".format(mean_gmm_cdist), "l")
 
 
 # Draw the legend
