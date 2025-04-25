@@ -2,7 +2,7 @@ import numpy as np
 import ROOT
 
 # Sample data (replace this with your actual NumPy array)
-data = np.load('/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/text_files/gamma_array.npy')
+data = np.load('/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/text_files/beta_array_new.npy')
 # Extract unique values from column 1 (cm angle)
 unique_angles = np.unique(data[:, 0])
 
@@ -22,8 +22,8 @@ for i, angle in enumerate(unique_angles):
     subset = data[data[:, 0] == angle]
 
     # Extract column 2 (x-axis) and column 4 (y-axis)
-    x_values = subset[:, 1].astype(float) * 100  # Ensure float type
-    y_values = subset[:, 2].astype(float)  # Ensure float type
+    x_values = subset[:, 1].astype(float)   # Ensure float type
+    y_values = subset[:, 3].astype(float)  # Ensure float type
 
     # Create a TGraph
     graph = ROOT.TGraph(len(x_values), x_values, y_values)

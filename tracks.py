@@ -1829,7 +1829,7 @@ for energy in excitation_energies:
 
                     angles_gmm, intersections_gmm, angles_minimize_gmm, start_point_gmm, end_point_gmm, closest_resp, closest_angle, phi_angle_gmm, data_with_filters, gmm_ranges_initial, gmm_ranges_final = kinematics_gmm(data_array, responsibilities, event_info)
 
-                    print('GMM angles', angles_gmm, gmm_ranges_final)
+                    print('GMM angles', angles_gmm, gmm_ranges_final, event_info.Elab)
                     gmm['angles'] = angles_gmm
                     gmm['intersections'] = intersections_gmm
                     gmm['start_point'] = start_point_gmm
