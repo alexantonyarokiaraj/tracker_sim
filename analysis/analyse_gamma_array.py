@@ -11,9 +11,22 @@ for energy in excitation_energies:
         print(f"\nProcessing cm_angle = {cm_angle}...\n")
         histograms = {}
         file_paths = [
-            f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/gamma/gamma_sim_5000_{energy}mev_{cm_angle}cm_1_1600.root",
-            f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/gamma/gamma_sim_5000_{energy}mev_{cm_angle}cm_1601_3200.root",
-            f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/gamma/gamma_sim_5000_{energy}mev_{cm_angle}cm_3201_5000.root"
+            f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/gamma_single_new/gamma_sim_5000_{energy}mev_{cm_angle}cm_1_312.root",
+            f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/gamma_single_new/gamma_sim_5000_{energy}mev_{cm_angle}cm_313_624.root",
+            f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/gamma_single_new/gamma_sim_5000_{energy}mev_{cm_angle}cm_625_936.root",
+            f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/gamma_single_new/gamma_sim_5000_{energy}mev_{cm_angle}cm_937_1248.root",
+            f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/gamma_single_new/gamma_sim_5000_{energy}mev_{cm_angle}cm_1249_1560.root",
+            f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/gamma_single_new/gamma_sim_5000_{energy}mev_{cm_angle}cm_1561_1872.root",
+            f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/gamma_single_new/gamma_sim_5000_{energy}mev_{cm_angle}cm_1873_2184.root",
+            f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/gamma_single_new/gamma_sim_5000_{energy}mev_{cm_angle}cm_2185_2496.root",
+            f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/gamma_single_new/gamma_sim_5000_{energy}mev_{cm_angle}cm_2497_2808.root",
+            f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/gamma_single_new/gamma_sim_5000_{energy}mev_{cm_angle}cm_2809_3120.root",
+            f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/gamma_single_new/gamma_sim_5000_{energy}mev_{cm_angle}cm_3121_3432.root",
+            f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/gamma_single_new/gamma_sim_5000_{energy}mev_{cm_angle}cm_3433_3744.root",
+            f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/gamma_single_new/gamma_sim_5000_{energy}mev_{cm_angle}cm_3745_4056.root",
+            f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/gamma_single_new/gamma_sim_5000_{energy}mev_{cm_angle}cm_4057_4368.root",
+            f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/gamma_single_new/gamma_sim_5000_{energy}mev_{cm_angle}cm_4369_4680.root",
+            f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/gamma_single_new/gamma_sim_5000_{energy}mev_{cm_angle}cm_4681_5000.root",
         ]
 
         histograms = {}  # Store histograms per unique responsibility
@@ -116,7 +129,7 @@ for energy in excitation_energies:
             histograms[resp].Delete()
         histograms.clear()
     print(responsibility_array)
-    # np.save('/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/text_files/gamma_array_new.npy', np.array(responsibility_array))
+    np.save('/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/text_files/gamma_array_new.npy', np.array(responsibility_array))
 
 
 

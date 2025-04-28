@@ -932,6 +932,9 @@ def kinematics_gmm(data, responsibilities, event_info):
                 end_point_full, start_point_full, beam_vector_full, dirVecTrackNorm_full, track_mean_full, closest_points_full = get_directions(cut_data)
                 track_vector_full = end_point_full - start_point_full
                 intersection_point_full = closest_point_on_line1(start_point_full, track_vector_full, np.array([0,128,128]), beam_vector_full)
+                print('FULL VECTOR BETA')
+                print(end_point_full)
+                print(intersection_point_full)
                 distances_from_start = np.linalg.norm(closest_points_full - start_point_full, axis=1)
                 mask_beta = (distances_from_start >= 0) & (distances_from_start <= Optimize.BETA.value)
                 filtered_data_beta = cut_data[mask_beta, :]
@@ -941,13 +944,16 @@ def kinematics_gmm(data, responsibilities, event_info):
                     lab_angle_beta = angle_between(track_vector_beta, beam_vector_beta)
                     phi_angle_beta = calculate_phi_angle(track_vector_beta, beam_vector_beta)
                     intersection_point_beta = closest_point_on_line1(start_point_beta, track_vector_beta, np.array([0,128,128]), beam_vector_beta)
+                    print('RESP VECTOR BETA')
+                    print(end_point_beta)
+                    print(intersection_point_beta)
                     # lab_angles_initial[label] = round(lab_angle_beta, 2)
                     # intersections_initial[label] = intersection_point_beta
                     # start_point_initial[label] = start_point_beta
                     # end_point_initial[label] = end_point_beta
                     # phi_angles_initial[label] = phi_angle_beta
                 if plots:
-                    plot_lines(track_mean_full, dirVecTrackNorm_full, start_point_full, end_point_full, intersection_point_full, closest_points_full, ax11, ax12, ax13, color='blue', s=400)
+                    # plot_lines(track_mean_full, dirVecTrackNorm_full, start_point_full, end_point_full, intersection_point_full, closest_points_full, ax11, ax12, ax13, color='blue', s=400)
                     plot_lines(track_mean_beta, dirVecTrackNorm_beta, start_point_beta, end_point_beta, intersection_point_beta, closest_points_beta, ax11, ax12, ax13, color='green', s=200)
                 # print('Track inside Volume', start_point, end_point, intersection_point, np.unique(cluster_data[:, 10]), np.unique(cluster_data[:, 11]), np.unique(cluster_data[:, 12]))
             else:
@@ -1010,6 +1016,9 @@ def kinematics_gmm(data, responsibilities, event_info):
                 end_point_resp, start_point_resp, beam_vector_resp, dirVecTrackNorm_resp, track_mean_resp, closest_points_resp = get_directions(data_for_angle)
                 track_vector_resp = end_point_resp - start_point_resp
                 intersection_point_resp = closest_point_on_line1(start_point_resp, track_vector_resp, np.array([0,128,128]), beam_vector_resp)
+                print('RESP VECTOR')
+                print(end_point_resp)
+                print(intersection_point_resp)
                 # intersections_final[label] = intersection_point_resp
                 lab_angle_resp = angle_between(track_vector_resp, beam_vector_resp)
                 phi_angle_resp = calculate_phi_angle(track_vector_resp, beam_vector_resp)
@@ -1018,7 +1027,9 @@ def kinematics_gmm(data, responsibilities, event_info):
                 start_point_initial[label] = start_point_resp
                 end_point_initial[label] = end_point_resp
                 phi_angles_initial[label] = phi_angle_resp
-
+                print('GAMMA Comparison',lab_angle_resp,lab_angle_beta, event_info.Elab)
+                if abs(lab_angle_beta-lab_angle_resp) > 2 and abs(lab_angle_resp - event_info.Elab) < 2:
+                    print('GMM WORKS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
                 endpts = extend_line_based_on_reference(start_point_resp, end_point_resp, start_point_full, end_point_full, intersection_point_resp, extra_start=float(Reference.RANGE_EXTEND.value))
                 en = Energy(filter_track_data(cut_data_charge, side_flag), endpts, calibration_table)
                 new_position, fit_energy_, line_vector_start_3d, unit_vector_3d, line_length_2d, line_vector_end_3d, histogram_array_new = en.calculate_profiles()
@@ -1035,14 +1046,16 @@ def kinematics_gmm(data, responsibilities, event_info):
                 print(((en_max_-en_end_)-(ran_end_-ran_max_))/en_max_)
                 ranges_final[label] = ran_end_
                 print('Lowest Angle, Threshold', round(angle_between(track_vector_resp, beam_vector_resp), 2), closest_threshold*100)
+                np.save('data_array_gamma_mask.npy', data[final_mask, :])
                 if plots:
-                    plot_lines(track_mean_resp, dirVecTrackNorm_resp, endpts[0, :], endpts[1, :], intersection_point_resp, closest_points_resp, ax11, ax12, ax13, color='red', s=100)
+                    plot_lines(track_mean_resp, dirVecTrackNorm_resp, endpts[0, :], endpts[1, :], intersection_point_resp, closest_points_resp, ax11, ax12, ax13, color='yellow', s=300)
                     plot_energy_distributions(ax16, r2d, sd, ran_end_, en_end_, ran_max_, en_max_,
                             charge_profile_x, charge_profile_y,
                             charge_profile_x_s, charge_profile_y_s)
                     ax11.scatter(data[final_mask, 0]+1, data[final_mask, 1]+1, marker = 'o')
                     ax12.scatter(data[final_mask, 1]+1, data[final_mask, 2]+1, marker = 'o')
                     ax13.scatter(data[final_mask, 0]+1, data[final_mask, 2]+1, marker = 'o')
+
     return lab_angles_initial, intersections_initial, lab_angles_minimize, start_point_initial, end_point_initial, closest_threshold_dict, closest_angle_dict, phi_angles_initial, data, ranges_initial, ranges_final
 
 # Function to plot the kinematics of GMM Clusters
@@ -1402,9 +1415,9 @@ def plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection
     ax12.scatter(intersection_point[1], intersection_point[2], color=color, marker='o', label='Intersection Point', s=75)
     ax13.plot([line_start[0], line_end[0]], [line_start[2], line_end[2]], label=f'Fitted Line')
     ax13.scatter(intersection_point[0], intersection_point[2], color=color, marker='o', label='Intersection Point', s=50)
-    ax11.scatter(closest_points[:, 0], closest_points[:, 1], color='red', label='Closest Points on PCA Line', s=20)
-    ax12.scatter(closest_points[:, 1], closest_points[:, 2], color='red', label='Closest Points on PCA Line', s=20)
-    ax13.scatter(closest_points[:, 0], closest_points[:, 2], color='red', label='Closest Points on PCA Line', s=20)
+    # ax11.scatter(closest_points[:, 0], closest_points[:, 1], color='red', label='Closest Points on PCA Line', s=20)
+    # ax12.scatter(closest_points[:, 1], closest_points[:, 2], color='red', label='Closest Points on PCA Line', s=20)
+    # ax13.scatter(closest_points[:, 0], closest_points[:, 2], color='red', label='Closest Points on PCA Line', s=20)
 
 # Function to find DBSCAN Clusters
 def dbcluster(data_array, N_PROC, nn_neighbor, nn_radius, db_min_samples, sensitivity_, eps_threshold_, eps_mode_):
@@ -1683,7 +1696,7 @@ for energy in excitation_energies:
                                                     Eenergy = round(entries.data.input_ejectile_energy, 2),
                                                     Elab = round(math.degrees(entries.data.input_theta_lab), 2)
                                                     )
-
+                    print(event_info.verX, event_info.verY, event_info.verZ, event_info.dirX, event_info.dirY, event_info.dirZ)
                     # Get Input array and Visualize it
                     # data_array = [x, y, z, q]
                     if plots:
@@ -1820,7 +1833,8 @@ for energy in excitation_energies:
                     if RunParameters.optimize_multiplicity.value:
                         print('Multiplicity Distances')
                         print(cdist_dict)
-                        # np.save('data_array.npy',data_array)
+
+                    np.save('data_array_gamma.npy',data_array)
 
                     gmm['components'] = n_comp
 
