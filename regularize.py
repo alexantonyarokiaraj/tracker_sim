@@ -4,7 +4,7 @@ from scipy.stats import chi2
 
 class Regularize:
 
-    def __init__(self, data_array, threshold=0.1, low_energy_threshold=5, merge_type='p_value', func=None):
+    def __init__(self, data_array, threshold=0.1, low_energy_threshold=15, merge_type='p_value', merge_algorithm='gmm', func=None):
         """
         Initialize the Regularize class.
 
@@ -17,6 +17,7 @@ class Regularize:
         self.low_energy_threshold = low_energy_threshold
         self.merge_type = merge_type
         self.func = func
+        self.merge_algorithm = merge_algorithm
 
     def calculate_g_matrix_p_value(self, xyz_data, clusters):
         """
@@ -151,7 +152,6 @@ class Regularize:
                     dist2 = np.linalg.norm(end_point2 - start_point1)
 
                     custom_metric = min(dist1, dist2)
-
                     # Apply threshold
                     if custom_metric > self.low_energy_threshold:
                         custom_metric = 0
@@ -187,12 +187,15 @@ class Regularize:
 
         xyz_data = self.data[:, DataArray.X.value:DataArray.Z.value + 1]
 
-        if self.merge_type == 'p_value':
+        if self.merge_type == 'p_value' and self.merge_algorithm == 'gmm':
             # print('pval merge')
             clusters = self.data[:, DataArray.gmm_labels.value].astype(int)
-        if self.merge_type == 'cdist':
+        if self.merge_type == 'cdist' and self.merge_algorithm == 'gmm':
             # print('dist merge')
             clusters = self.data[:, DataArray.merge_p_val.value].astype(int)
+        if self.merge_type == 'cdist' and self.merge_algorithm == 'ransac':
+            # print('dist merge')
+            clusters = self.data[:, DataArray.ransac_labels.value].astype(int)
 
         unique_clusters = np.unique(clusters)
 

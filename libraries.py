@@ -36,11 +36,12 @@ class RunParameters(Enum):
     optimize_cdist = False
     optimize_pij = False
     optimize_multiplicity = False
-    save_root_file = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/test/"
-    tag = "test"
-    exc_file_name = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/test/"
+    save_root_file = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/new/compare/"
+    tag = "compare"
+    exc_file_name = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/new/compare/"
     range_lookup_table = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/LookupTable_e780_58Ni_68Ni_Alex.xlsx"
     range_energy_conversion_sheet = "range_energy_he_he_cf4_mixed"
+    use_cij_ransac = True
 
 class VolumeBoundaries(Enum):
     VOLUME_MIN = 10
@@ -102,3 +103,8 @@ class ConversionFactors(Enum):
     NBINS_Z = 28000
     Z_START_BIN = 0 * Z_CONVERSION_FACTOR
     Z_END_BIN = 28000 * Z_CONVERSION_FACTOR
+
+class RansacParameters(Enum):
+    MAX_LINES = 10
+    RESIDUAL_THRESHOLD = 5.0
+    N_ITERATIONS = 1000

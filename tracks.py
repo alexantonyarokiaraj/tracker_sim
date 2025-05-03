@@ -35,7 +35,7 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.cluster import DBSCAN
 from kneed import KneeLocator
 from regularize import Regularize
-from libraries import DataArray, RunParameters, VolumeBoundaries, SCAN, Optimize, FileNames, Reference, ConversionFactors
+from libraries import DataArray, RunParameters, VolumeBoundaries, SCAN, Optimize, FileNames, Reference, ConversionFactors, RansacParameters
 from collections import defaultdict
 import warnings
 from energy import Energy
@@ -689,31 +689,37 @@ def kinematics_ransac(data, fitted_models, useLineModelND):
 
         # Check if the cluster size is greater than 10
         if cluster_data.shape[0] <= 10:
+            print('KINEMATICS RANSAC SHAPE')
             continue  # Skip this cluster if it has 10 or fewer points
 
         # Calculate the mean y of the cluster
         mean_y = np.mean(cluster_data[:, DataArray.Y.value])
         # Process clusters either above or below the beam line
         if (mean_y >= VolumeBoundaries.BEAM_ZONE_MAX.value or mean_y < VolumeBoundaries.BEAM_ZONE_MIN.value) and cluster_data.shape[0] >= 10:
-            mask = (
-                (cluster_data[:, DataArray.scattered_track.value] == 1) &
-                (cluster_data[:, DataArray.track_inside_volume.value] == 1) &
-                (cluster_data[:, DataArray.vertex_inside_volume.value] == 1) &
-                ((cluster_data[:, DataArray.side_of_track.value] == 1) | (cluster_data[:, DataArray.side_of_track.value] == -1)) &  # Column : (side_flag_col) = 1 or -1
-                ((cluster_data[:, DataArray.closest_track.value] == 1) | (cluster_data[:, DataArray.closest_track.value] == -1)) & # Column: (proximity_flag_col) = 1 or -1
-                (cluster_data[:, DataArray.end_point_above_beam_zone.value] == 1) # Column 12: Track End point above the beam zone
-            )
+            # mask = (
+            #     (cluster_data[:, DataArray.scattered_track.value] == 1) &
+            #     (cluster_data[:, DataArray.track_inside_volume.value] == 1) &
+            #     (cluster_data[:, DataArray.vertex_inside_volume.value] == 1) &
+            #     ((cluster_data[:, DataArray.side_of_track.value] == 1) | (cluster_data[:, DataArray.side_of_track.value] == -1)) &  # Column : (side_flag_col) = 1 or -1
+            #     ((cluster_data[:, DataArray.closest_track.value] == 1) | (cluster_data[:, DataArray.closest_track.value] == -1)) & # Column: (proximity_flag_col) = 1 or -1
+            #     (cluster_data[:, DataArray.end_point_above_beam_zone.value] == 1) # Column 12: Track End point above the beam zone
+            # )
+            mask = cluster_data[:, DataArray.scattered_track.value] == 1
+            print('KINEMATICS RANSAC', mask)
             cut_data = cluster_data[mask, :3]
             cut_data_charge = cluster_data[mask, :4]
             if cut_data.size > 0:
+                print('KINEMATICS RANSAC II', mask)
                 # Fill the lab angles and intersections based on first PCA fit.
                 end_point_full, start_point_full, beam_vector_full, dirVecTrackNorm_full, track_mean_full, closest_points_full = get_directions(cut_data)
                 track_vector_full = end_point_full - start_point_full
                 intersection_point_full = closest_point_on_line1(start_point_full, track_vector_full, np.array([0,128,128]), beam_vector_full)
                 distances_from_start = np.linalg.norm(closest_points_full - start_point_full, axis=1)
-                mask_beta = (distances_from_start >= 0) & (distances_from_start <= Optimize.BETA.value)
+                mask_beta = (distances_from_start >= 0) & (distances_from_start <= 100)
                 filtered_data_beta = cut_data[mask_beta, :]
+                print('KINEMATICS RANSAC III', mask_beta)
                 if len(filtered_data_beta) > 1:
+                    print('KINEMATICS RANSAC IV', mask_beta)
                     end_point_beta, start_point_beta, beam_vector_beta, dirVecTrackNorm_beta, track_mean_beta, closest_points_beta = get_directions(filtered_data_beta)
                     track_vector_beta = end_point_beta - start_point_beta
                     lab_angle_beta = angle_between(track_vector_beta, beam_vector_beta)
@@ -855,7 +861,7 @@ def fit_gmm_with_bic(data, max_components=10):
 
 # Function to plot the GMM assigned clusters
 def plot_gmm(data_array, event_info, color = 'blue', size=50):
-    labels = data_array[:, DataArray.merge_p_val.value]
+    labels = data_array[:, DataArray.merge_cdist.value]
     cmap = plt.cm.get_cmap("Dark2", len(np.unique(labels)))
     update_clear(ax11)
     update_clear(ax12)
@@ -864,7 +870,7 @@ def plot_gmm(data_array, event_info, color = 'blue', size=50):
     colorbar8 = add_rectangles(ax12, data_array[:, DataArray.X.value:DataArray.Z.value + 1], labels, cmap, proj = 'yz', colorbarFlag=True, discrete=True)
     colorbar9 = add_rectangles(ax13, data_array[:, DataArray.X.value:DataArray.Z.value + 1], labels, cmap, proj = 'xz', colorbarFlag=True, discrete=True)
      # Place the number of data points in the top right corner
-    print('Printing input vertices', event_info.verX, event_info.verY, event_info.verZ, event_info.dirX, event_info.dirY, event_info.dirZ, line_length)
+    # print('Printing input vertices', event_info.verX, event_info.verY, event_info.verZ, event_info.dirX, event_info.dirY, event_info.dirZ, line_length)
     ax11.plot([event_info.verX, event_info.verX + line_length * event_info.dirX],[event_info.verY, event_info.verY + line_length * event_info.dirY],
                 color=color, alpha=transparency)
     ax11.scatter(event_info.verX, event_info.verY, color=color, edgecolor='black', s=size, zorder=3)  # Circle for vertex
@@ -912,12 +918,13 @@ def kinematics_gmm(data, responsibilities, event_info):
         # Calculate the mean of Y coordinate
         mean_y = np.mean(cluster_data[:, DataArray.Y.value])
         if (mean_y >= VolumeBoundaries.BEAM_ZONE_MAX.value or mean_y < VolumeBoundaries.BEAM_ZONE_MIN.value) and cluster_data.shape[0] >= 10:
-            mask = (
-                (cluster_data[:, DataArray.scattered_track.value] == 1) &
-                (cluster_data[:, DataArray.track_inside_volume.value] == 1) &
-                ((cluster_data[:, DataArray.side_of_track.value] == 1) | (cluster_data[:, DataArray.side_of_track.value] == -1)) &
-                (cluster_data[:, DataArray.end_point_above_beam_zone.value] == 1)
-            )
+            # mask = (
+            #     (cluster_data[:, DataArray.scattered_track.value] == 1) &
+            #     (cluster_data[:, DataArray.track_inside_volume.value] == 1) &
+            #     ((cluster_data[:, DataArray.side_of_track.value] == 1) | (cluster_data[:, DataArray.side_of_track.value] == -1)) &
+            #     (cluster_data[:, DataArray.end_point_above_beam_zone.value] == 1)
+            # )
+            mask = cluster_data[:, DataArray.scattered_track.value] == 1
             cut_data = cluster_data[mask, :3]
             # Determine if the track is above or below
             cut_data_track = cluster_data[mask, :]
@@ -932,9 +939,6 @@ def kinematics_gmm(data, responsibilities, event_info):
                 end_point_full, start_point_full, beam_vector_full, dirVecTrackNorm_full, track_mean_full, closest_points_full = get_directions(cut_data)
                 track_vector_full = end_point_full - start_point_full
                 intersection_point_full = closest_point_on_line1(start_point_full, track_vector_full, np.array([0,128,128]), beam_vector_full)
-                print('FULL VECTOR BETA')
-                print(end_point_full)
-                print(intersection_point_full)
                 distances_from_start = np.linalg.norm(closest_points_full - start_point_full, axis=1)
                 mask_beta = (distances_from_start >= 0) & (distances_from_start <= Optimize.BETA.value)
                 filtered_data_beta = cut_data[mask_beta, :]
@@ -944,9 +948,6 @@ def kinematics_gmm(data, responsibilities, event_info):
                     lab_angle_beta = angle_between(track_vector_beta, beam_vector_beta)
                     phi_angle_beta = calculate_phi_angle(track_vector_beta, beam_vector_beta)
                     intersection_point_beta = closest_point_on_line1(start_point_beta, track_vector_beta, np.array([0,128,128]), beam_vector_beta)
-                    print('RESP VECTOR BETA')
-                    print(end_point_beta)
-                    print(intersection_point_beta)
                     # lab_angles_initial[label] = round(lab_angle_beta, 2)
                     # intersections_initial[label] = intersection_point_beta
                     # start_point_initial[label] = start_point_beta
@@ -1016,9 +1017,6 @@ def kinematics_gmm(data, responsibilities, event_info):
                 end_point_resp, start_point_resp, beam_vector_resp, dirVecTrackNorm_resp, track_mean_resp, closest_points_resp = get_directions(data_for_angle)
                 track_vector_resp = end_point_resp - start_point_resp
                 intersection_point_resp = closest_point_on_line1(start_point_resp, track_vector_resp, np.array([0,128,128]), beam_vector_resp)
-                print('RESP VECTOR')
-                print(end_point_resp)
-                print(intersection_point_resp)
                 # intersections_final[label] = intersection_point_resp
                 lab_angle_resp = angle_between(track_vector_resp, beam_vector_resp)
                 phi_angle_resp = calculate_phi_angle(track_vector_resp, beam_vector_resp)
@@ -1027,9 +1025,6 @@ def kinematics_gmm(data, responsibilities, event_info):
                 start_point_initial[label] = start_point_resp
                 end_point_initial[label] = end_point_resp
                 phi_angles_initial[label] = phi_angle_resp
-                print('GAMMA Comparison',lab_angle_resp,lab_angle_beta, event_info.Elab)
-                if abs(lab_angle_beta-lab_angle_resp) > 2 and abs(lab_angle_resp - event_info.Elab) < 2:
-                    print('GMM WORKS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
                 endpts = extend_line_based_on_reference(start_point_resp, end_point_resp, start_point_full, end_point_full, intersection_point_resp, extra_start=float(Reference.RANGE_EXTEND.value))
                 en = Energy(filter_track_data(cut_data_charge, side_flag), endpts, calibration_table)
                 new_position, fit_energy_, line_vector_start_3d, unit_vector_3d, line_length_2d, line_vector_end_3d, histogram_array_new = en.calculate_profiles()
@@ -1046,7 +1041,7 @@ def kinematics_gmm(data, responsibilities, event_info):
                 print(((en_max_-en_end_)-(ran_end_-ran_max_))/en_max_)
                 ranges_final[label] = ran_end_
                 print('Lowest Angle, Threshold', round(angle_between(track_vector_resp, beam_vector_resp), 2), closest_threshold*100)
-                np.save('data_array_gamma_mask.npy', data[final_mask, :])
+                # np.save('data_array_gamma_mask.npy', data[final_mask, :])
                 if plots:
                     plot_lines(track_mean_resp, dirVecTrackNorm_resp, endpts[0, :], endpts[1, :], intersection_point_resp, closest_points_resp, ax11, ax12, ax13, color='yellow', s=300)
                     plot_energy_distributions(ax16, r2d, sd, ran_end_, en_end_, ran_max_, en_max_,
@@ -1554,7 +1549,7 @@ def hierarchical_clustering_with_responsibilities(data_array, max_components=10)
 # Function to calculate the metrics for low energy tracks
 def calculate_metric_low_energy(data):
 
-    unique_gmm_labels = len(np.unique(data[:, DataArray.gmm_labels.value]))
+    unique_gmm_labels = len(np.unique(data[:, DataArray.merge_p_val.value]))
 
     # Filter tracks based on flags
     scattered_tracks = data[:, DataArray.scattered_track.value] == 1  # Column 10: Scattered track
@@ -1729,13 +1724,12 @@ for energy in excitation_energies:
 
                     # Get Predicted Labels from RANSAC
                     # data_array = [0-x,1-y,2-z,3-q,4-track_ID, 5-true_labels_sim, 6-true_labels_hard, 7-ransac labels]
-                    ransac_labels, fitted_models = find_multiple_lines_ransac(data_array, max_lines=10, residual_threshold=5.0, n_iterations=1000)
+                    ransac_labels, fitted_models = find_multiple_lines_ransac(data_array, max_lines=RansacParameters.MAX_LINES.value, residual_threshold=RansacParameters.RESIDUAL_THRESHOLD.value, n_iterations=RansacParameters.N_ITERATIONS.value)
                     data_array = np.column_stack((data_array, ransac_labels))
                     ransac['components'] = len(np.unique(ransac_labels))
                     print('Number of unique ransac labels', np.unique(ransac_labels))
 
-                    if plots:
-                        colorbars_ransac = plot_ransac(data_array, event_info)
+
 
                     #Get Prediced Labels from GMM
                     # data_array = [0-x,1-y,2-z,3-q,4-track_ID, 5-true_labels_sim, 6-true_labels_hard, 7-ransac labels, 8-gmm labels, 9-dbscan labels, 10 - merge labels]
@@ -1743,10 +1737,42 @@ for energy in excitation_energies:
 
                     data_array = np.column_stack((data_array, gmm_labels))
                     data_array = np.column_stack((data_array, dbscan_labels))
-                    reg = Regularize(data_array=data_array, threshold=Optimize.P_VALUE.value, merge_type='p_value')
+                    reg = Regularize(data_array=data_array, threshold=Optimize.P_VALUE.value, merge_type='p_value', merge_algorithm='gmm')
                     final_clusters = reg.merge_labels()
+
+                    # data_array = [0-x,1-y,2-z,3-q,4-track_ID, 5-true_labels_sim, 6-true_labels_hard, 7-ransac labels, 8-gmm labels, 9-dbscan labels, 10 - merge labels, 11 - merge_cdist labels]
                     data_array = np.column_stack((data_array, final_clusters))
                     data_array = np.column_stack((data_array, final_clusters))
+
+                    if RunParameters.use_cij_ransac.value:
+                        ransac_filter_data_array = add_filters(data_array, model= int(DataArray.ransac_labels.value))
+                        scattered_condition_rfda = ransac_filter_data_array[:, DataArray.scattered_track.value] == 1
+                        scattered_above_mask_rfda = ransac_filter_data_array[:, DataArray.side_of_track.value] == 1
+                        scattered_below_mask_rfda = ransac_filter_data_array[:, DataArray.side_of_track.value] == -1
+                        ransac_noise = ransac_filter_data_array[:, DataArray.ransac_labels.value] != 20
+                        scattered_above_rfda = scattered_condition_rfda & scattered_above_mask_rfda & ransac_noise
+                        scattered_below_rfda = scattered_condition_rfda & scattered_below_mask_rfda & ransac_noise
+                        highest_label_rfda = int(max(ransac_filter_data_array[:, DataArray.ransac_labels.value]) + 1)
+                        ransac_filter_data_array_above = ransac_filter_data_array[scattered_above_rfda, :]
+                        if ransac_filter_data_array_above.size > 0:
+                            ransac_filter_reg_low_energy_above = Regularize(data_array=ransac_filter_data_array_above, low_energy_threshold=Optimize.C_DIST.value, merge_type='cdist', merge_algorithm='ransac', func=get_directions)
+                            ransac_filter_final_clusters_above = ransac_filter_reg_low_energy_above.merge_labels()
+                            ransac_filter_final_clusters_above += highest_label_rfda
+                            highest_label_rfda = max(ransac_filter_final_clusters_above) + 1
+                            data_array[scattered_above_rfda, DataArray.ransac_labels.value] = ransac_filter_final_clusters_above
+                        ransac_filter_data_array_below = ransac_filter_data_array[scattered_below_rfda, :]
+                        if ransac_filter_data_array_below.size > 0:
+                            ransac_filter_reg_low_energy_below = Regularize(data_array=ransac_filter_data_array_below, low_energy_threshold=Optimize.C_DIST.value, merge_type='cdist', merge_algorithm='ransac', func=get_directions)
+                            ransac_filter_final_clusters_below = ransac_filter_reg_low_energy_below.merge_labels()
+                            # print(highest_label_rfda.shape, type(highest_label_rfda))
+                            # print(ransac_filter_final_clusters_below.shape, type(ransac_filter_final_clusters_below))
+                            ransac_filter_final_clusters_below += highest_label_rfda
+                            data_array[scattered_below_rfda, DataArray.ransac_labels.value] = ransac_filter_final_clusters_below
+
+                    if plots:
+                        colorbars_ransac = plot_ransac(data_array, event_info)
+
+                    print('Number of unique ransac reg labels', np.unique(data_array[:, DataArray.ransac_labels.value]))
 
                     angles_ransac, intersections_ransac, start_point_ransac, end_point_ransac, phi_angle_ransac, ranges_initial, ranges_final = kinematics_ransac(data_array, fitted_models, False)
                     print('RANSAC angles', angles_ransac, ranges_final)
@@ -1787,8 +1813,8 @@ for energy in excitation_energies:
 
                     if RunParameters.optimize_cdist.value:
                         metric_low_energy = calculate_metric_low_energy(data_array)
-                        # print('Printing metric low energy')
-                        # print(metric_low_energy)
+                        print('Printing metric low energy')
+                        print(metric_low_energy)
                     else:
                         metric_low_energy = {}
 
@@ -1809,7 +1835,7 @@ for energy in excitation_energies:
 
                         data_array_above = data_array[scattered_above, :]
                         if data_array_above.size > 0:
-                            reg_low_energy_above = Regularize(data_array=data_array_above, low_energy_threshold=dist_thresholds, merge_type='cdist', func=get_directions)
+                            reg_low_energy_above = Regularize(data_array=data_array_above, low_energy_threshold=dist_thresholds, merge_type='cdist', merge_algorithm='gmm', func=get_directions)
                             final_clusters_above = reg_low_energy_above.merge_labels()
                             final_clusters_above += highest_label
                             highest_label = max(final_clusters_above) + 1
@@ -1817,7 +1843,7 @@ for energy in excitation_energies:
 
                         data_array_below = data_array[scattered_below, :]
                         if data_array_below.size > 0:
-                            reg_low_energy_below = Regularize(data_array=data_array_below, low_energy_threshold=dist_thresholds, merge_type='cdist', func=get_directions)
+                            reg_low_energy_below = Regularize(data_array=data_array_below, low_energy_threshold=dist_thresholds, merge_type='cdist', merge_algorithm='gmm', func=get_directions)
                             final_clusters_below = reg_low_energy_below.merge_labels()
                             final_clusters_below += highest_label
                             data_array[scattered_below, DataArray.merge_cdist.value] = final_clusters_below
@@ -1834,7 +1860,7 @@ for energy in excitation_energies:
                         print('Multiplicity Distances')
                         print(cdist_dict)
 
-                    np.save('data_array_gamma.npy',data_array)
+                    # np.save('data_array_gamma.npy',data_array)
 
                     gmm['components'] = n_comp
 
