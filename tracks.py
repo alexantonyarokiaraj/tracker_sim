@@ -705,11 +705,9 @@ def kinematics_ransac(data, fitted_models, useLineModelND):
             #     (cluster_data[:, DataArray.end_point_above_beam_zone.value] == 1) # Column 12: Track End point above the beam zone
             # )
             mask = cluster_data[:, DataArray.scattered_track.value] == 1
-            print('KINEMATICS RANSAC', mask)
             cut_data = cluster_data[mask, :3]
             cut_data_charge = cluster_data[mask, :4]
             if cut_data.size > 0:
-                print('KINEMATICS RANSAC II', mask)
                 # Fill the lab angles and intersections based on first PCA fit.
                 end_point_full, start_point_full, beam_vector_full, dirVecTrackNorm_full, track_mean_full, closest_points_full = get_directions(cut_data)
                 track_vector_full = end_point_full - start_point_full
@@ -717,9 +715,7 @@ def kinematics_ransac(data, fitted_models, useLineModelND):
                 distances_from_start = np.linalg.norm(closest_points_full - start_point_full, axis=1)
                 mask_beta = (distances_from_start >= 0) & (distances_from_start <= 100)
                 filtered_data_beta = cut_data[mask_beta, :]
-                print('KINEMATICS RANSAC III', mask_beta)
                 if len(filtered_data_beta) > 1:
-                    print('KINEMATICS RANSAC IV', mask_beta)
                     end_point_beta, start_point_beta, beam_vector_beta, dirVecTrackNorm_beta, track_mean_beta, closest_points_beta = get_directions(filtered_data_beta)
                     track_vector_beta = end_point_beta - start_point_beta
                     lab_angle_beta = angle_between(track_vector_beta, beam_vector_beta)
@@ -909,7 +905,7 @@ def kinematics_gmm(data, responsibilities, event_info):
     ranges_initial = {}
     ranges_final = {}
     intersections_final = {}
-
+    print('Inside Kinematics GMM - Printing the shape of the data array', data.shape)
     gmm_labels = np.unique(data[:, DataArray.merge_cdist.value])
     for label in gmm_labels:
         cluster_data = data[data[:, DataArray.merge_cdist.value] == label]
