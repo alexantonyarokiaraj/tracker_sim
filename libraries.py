@@ -42,6 +42,7 @@ class RunParameters(Enum):
     range_lookup_table = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/LookupTable_e780_58Ni_68Ni_Alex.xlsx"
     range_energy_conversion_sheet = "range_energy_he_he_cf4_mixed"
     use_cij_ransac = True
+    use_beta_fraction = True
 
 class VolumeBoundaries(Enum):
     VOLUME_MIN = 10
@@ -68,6 +69,10 @@ class Optimize(Enum):
     BETA_RANGE_LOW = 10 #mm
     BETA_RANGE_HIGH = 100 #mm
     BETA_STEPS = 1 #mm
+    BETA_FRACTION = 65/100
+    BETA_RANGE_LOW_FRACTION = 1/100
+    BETA_RANGE_HIGH_FRACTION = 100/100
+    BETA_STEPS_FRACTION = 100
     GAMMA = 2.5/100
     P_VALUE = 0.1
     C_DIST = 15

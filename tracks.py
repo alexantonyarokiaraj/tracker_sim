@@ -880,8 +880,14 @@ def plot_gmm(data_array, event_info, color = 'blue', size=50):
     # print('GMM colorbar', [colorbar7, colorbar8, colorbar9])
     return [colorbar7, colorbar8, colorbar9]
 
+
+def point_to_line_distance(P, A, u):
+    """Perpendicular distance from point P to line A + t·u."""
+    return np.linalg.norm(np.cross(P - A, u)) / np.linalg.norm(u)
+
+
 # Function to plot the kinematics of GMM Clusters
-def kinematics_gmm(data, responsibilities, event_info):
+def kinematics_gmm(data_initial, responsibilities, event_info):
     """
     Analyze clusters based on GMM labels to find direction vectors, intersections with a beam line,
     and angles. Plot the clusters with their fitted line in XY projection.
@@ -905,7 +911,9 @@ def kinematics_gmm(data, responsibilities, event_info):
     ranges_initial = {}
     ranges_final = {}
     intersections_final = {}
-    print('Inside Kinematics GMM - Printing the shape of the data array', data.shape)
+    data_initial_no_filters = data_initial[:, :DataArray.merge_cdist.value + 1]
+    data = add_filters(data_initial_no_filters, model= int(DataArray.merge_cdist.value))
+
     gmm_labels = np.unique(data[:, DataArray.merge_cdist.value])
     for label in gmm_labels:
         cluster_data = data[data[:, DataArray.merge_cdist.value] == label]
@@ -935,9 +943,62 @@ def kinematics_gmm(data, responsibilities, event_info):
                 end_point_full, start_point_full, beam_vector_full, dirVecTrackNorm_full, track_mean_full, closest_points_full = get_directions(cut_data)
                 track_vector_full = end_point_full - start_point_full
                 intersection_point_full = closest_point_on_line1(start_point_full, track_vector_full, np.array([0,128,128]), beam_vector_full)
-                distances_from_start = np.linalg.norm(closest_points_full - start_point_full, axis=1)
-                mask_beta = (distances_from_start >= 0) & (distances_from_start <= Optimize.BETA.value)
-                filtered_data_beta = cut_data[mask_beta, :]
+
+                filtered_data_beta = np.array([])
+                if RunParameters.use_beta_fraction.value:
+                    beam_start = np.array([0.0, 128.0, 128.0])
+                    beam_end   = np.array([256.0, 128.0, 128.0])
+                    beam_dir   = beam_end - beam_start
+                    # Applying Segment fit here.
+
+                    pts_cdist = cluster_data[mask, :]
+                    segments = []
+
+                    for gmm_label_pval in np.unique(pts_cdist[:, DataArray.merge_p_val.value]):
+                        pts_pval = pts_cdist[pts_cdist[:, DataArray.merge_p_val.value] == gmm_label_pval, 0:3]
+                        if len(pts_pval) < 2:
+                            continue
+                        end_point_pval, start_point_pval, beam_vector_pval, dirVecTrackNorm_pval, track_mean_pval, closest_points_pval = get_directions(pts_pval)
+                        segments.append({'pval_label': gmm_label_pval, 'start': start_point_pval, 'end':end_point_pval, 'length':np.linalg.norm(end_point_pval-start_point_pval), 'closest_points': closest_points_pval, 'points': pts_pval})
+                    for segment in segments:
+                        segment['d_beam'] = point_to_line_distance(segment['start'], beam_start, beam_dir)
+
+                    segments.sort(key=lambda s: s['d_beam'])
+
+                    total_len = sum(s['length'] for s in segments)
+
+                    cutoff = Optimize.BETA_FRACTION.value * total_len
+
+
+                    cum_len = 0.0
+                    selected_points = []
+
+                    for segment in segments:
+                        segment_length = segment['length']
+                        direction = segment['end'] - segment['start']
+                        direction_unit = direction / segment_length
+                        if cum_len + segment['length'] < cutoff:
+                            selected_points.append(segment['points'])
+                            cum_len += segment['length']
+                        else:
+                            remain = cutoff - cum_len
+                            distances_from_start = np.linalg.norm(segment['closest_points'] - segment['start'], axis=1)
+                            mask_beta_fraction = (distances_from_start >= 0) & (distances_from_start <= remain)
+                            selected_points.append(segment['points'][mask_beta_fraction])
+                            break
+
+                    # Concatenate selected points
+                    if selected_points:
+                        selected_pts_array = np.vstack(selected_points)
+
+                    filtered_data_beta = selected_pts_array
+
+                else:
+
+                    distances_from_start = np.linalg.norm(closest_points_full - start_point_full, axis=1)
+                    mask_beta = (distances_from_start >= 0) & (distances_from_start <= Optimize.BETA.value)
+                    filtered_data_beta = cut_data[mask_beta, :]
+
                 if len(filtered_data_beta) > 1:
                     end_point_beta, start_point_beta, beam_vector_beta, dirVecTrackNorm_beta, track_mean_beta, closest_points_beta = get_directions(filtered_data_beta)
                     track_vector_beta = end_point_beta - start_point_beta
@@ -985,7 +1046,7 @@ def kinematics_gmm(data, responsibilities, event_info):
                 res = [Optimize.GAMMA.value]
             cut_data = cluster_data[mask, :3]
             cut_data_charge = cluster_data[mask, :4]
-            if cut_data.size > 0:
+            if cut_data.size > 0 and len(filtered_data_beta) > 0:
                 end_point_fnew, start_point_fnew, beam_vector_fnew, dirVecTrackNorm_fnew, track_mean_fnew, closest_points_fnew = get_directions(cut_data)
                 distances_from_start_fnew = np.linalg.norm(closest_points_fnew - start_point_fnew, axis=1)
                 mask_beta_fnew = (distances_from_start_fnew >= 0) & (distances_from_start_fnew <= Optimize.BETA.value)
@@ -993,7 +1054,7 @@ def kinematics_gmm(data, responsibilities, event_info):
                     responsibility_threshold = res_threshold
                     responsibility_mask = np.any(responsibilities[:, gmm_labels_raw] > responsibility_threshold, axis=1)
                     final_mask = inside_beam_zone_not_label & responsibility_mask
-                    data_for_angle = np.vstack((cut_data[mask_beta_fnew, :3], data[final_mask, :3]))
+                    data_for_angle = np.vstack((filtered_data_beta, data[final_mask, :3]))
                     end_point_resp, start_point_resp, beam_vector_resp, dirVecTrackNorm_resp, track_mean_resp, closest_points_resp = get_directions(data_for_angle)
                     track_vector_resp = end_point_resp - start_point_resp
                     lab_angle_p = angle_between(track_vector_resp, beam_vector_resp)
@@ -1006,7 +1067,7 @@ def kinematics_gmm(data, responsibilities, event_info):
                 responsibility_threshold = Optimize.GAMMA.value
                 responsibility_mask = np.any(responsibilities[:, gmm_labels_raw] > responsibility_threshold, axis=1)
                 final_mask = inside_beam_zone_not_label & responsibility_mask
-                data_for_angle = np.vstack((cut_data[mask_beta_fnew, :3], data[final_mask, :3]))
+                data_for_angle = np.vstack((filtered_data_beta, data[final_mask, :3]))
                 end_point_full, start_point_full, beam_vector_full, dirVecTrackNorm_full, track_mean_full, closest_points_full = get_directions(cut_data)
                 track_vector_full = end_point_full - start_point_full
                 intersection_point_full = closest_point_on_line1(start_point_full, track_vector_full, np.array([0,128,128]), beam_vector_full)
