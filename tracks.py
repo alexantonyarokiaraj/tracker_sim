@@ -668,6 +668,63 @@ def filter_track_data(cut_data_charge, track_above):
 
     return filtered_data
 
+
+def segment_beta(cluster_data, mask, fraction_beta, model = 'gmm'):
+
+    if model == 'ransac':
+        old_label = DataArray.old_ransac_labels.value
+    if model == 'gmm':
+        old_label = DataArray.merge_p_val.value
+
+    beam_start = np.array([0.0, 128.0, 128.0])
+    beam_end   = np.array([256.0, 128.0, 128.0])
+    beam_dir   = beam_end - beam_start
+
+    pts_cdist = cluster_data[mask, :]
+    segments = []
+
+    for gmm_label_pval in np.unique(pts_cdist[:, old_label]):
+        pts_pval = pts_cdist[pts_cdist[:, old_label] == gmm_label_pval, 0:3]
+        if len(pts_pval) < 2:
+            continue
+        end_point_pval, start_point_pval, _, _, _, closest_points_pval = get_directions(pts_pval)
+        segments.append({'pval_label': gmm_label_pval, 'start': start_point_pval, 'end':end_point_pval, 'length':np.linalg.norm(end_point_pval-start_point_pval), 'closest_points': closest_points_pval, 'points': pts_pval})
+
+    for segment in segments:
+        segment['d_beam'] = point_to_line_distance(segment['start'], beam_start, beam_dir)
+
+    segments.sort(key=lambda s: s['d_beam'])
+
+    total_len = sum(s['length'] for s in segments)
+
+    cutoff = fraction_beta * total_len
+
+
+    cum_len = 0.0
+    selected_points = []
+
+    for segment in segments:
+        segment_length = segment['length']
+        direction = segment['end'] - segment['start']
+        direction_unit = direction / segment_length
+        if cum_len + segment['length'] < cutoff:
+            selected_points.append(segment['points'])
+            cum_len += segment['length']
+        else:
+            remain = cutoff - cum_len
+            distances_from_start = np.linalg.norm(segment['closest_points'] - segment['start'], axis=1)
+            mask_beta_fraction = (distances_from_start >= 0) & (distances_from_start <= remain)
+            selected_points.append(segment['points'][mask_beta_fraction])
+            break
+
+    # Concatenate selected points
+    if selected_points:
+        selected_pts_array = np.vstack(selected_points)
+
+    filtered_data_beta = selected_pts_array
+
+    return filtered_data_beta
+
 def kinematics_ransac(data_initial, fitted_models, useLineModelND, orl = None):
     # Define the beam line endpoints
 
@@ -1166,9 +1223,13 @@ def kinematics_gmm(data_initial, responsibilities, event_info):
     return lab_angles_initial, intersections_initial, lab_angles_minimize, start_point_initial, end_point_initial, closest_threshold_dict, closest_angle_dict, phi_angles_initial, data, ranges_initial, ranges_final
 
 # Function to plot the kinematics of GMM Clusters
-def calculate_beta(data, model = None):
+def calculate_beta(data_initial, model = None, orl = None):
     if model == DataArray.ransac_labels.value:
-        data = add_filters(data, model= int(DataArray.ransac_labels.value))
+        data_arr = add_filters(data_initial, model= int(DataArray.ransac_labels.value))
+        data_in = np.column_stack((data_arr, orl))
+        data = data_in[data_in[:, DataArray.ransac_labels.value] != 20]
+    if model == DataArray.merge_cdist.value:
+        data = data_initial
     lab_angles_beta = {}
     track_labels = np.unique(data[:, model])
     for label in track_labels:
@@ -1179,30 +1240,40 @@ def calculate_beta(data, model = None):
         mean_y = np.mean(cluster_data[:, DataArray.Y.value])
         if (mean_y >= VolumeBoundaries.BEAM_ZONE_MAX.value or mean_y < VolumeBoundaries.BEAM_ZONE_MIN.value) and cluster_data.shape[0] >= 10:
             # Mask for selecting tracks
-            mask = (
-                    (cluster_data[:, DataArray.scattered_track.value] == 1) &
-                    (cluster_data[:, DataArray.track_inside_volume.value] == 1) &
-                    ((cluster_data[:, DataArray.side_of_track.value] == 1) | (cluster_data[:, DataArray.side_of_track.value] == -1)) &
-                    (cluster_data[:, DataArray.end_point_above_beam_zone.value] == 1)
-                )
+            mask = cluster_data[:, DataArray.scattered_track.value] == 1
             cut_data = cluster_data[mask, :3]
             if cut_data.size > 0:
-                end_point, start_point, beam_vector, dirVecTrackNorm, track_mean, closest_points = get_directions(cut_data)
-                distances_from_start = np.linalg.norm(closest_points - start_point, axis=1)
-                angle_beta_dict = {}
-                for beta in range(Optimize.BETA_RANGE_LOW.value, Optimize.BETA_RANGE_HIGH.value, Optimize.BETA_STEPS.value):
-                    mask_beta = (distances_from_start >= 0) & (distances_from_start <= beta)
-                    filtered_data = cut_data[mask_beta, :]
-                    if len(filtered_data) > 1:
-                        end_point_beta, start_point_beta, beam_vector_beta, dirVecTrackNorm_beta, track_mean_beta, closest_points_beta = get_directions(filtered_data)
-                        track_vector_beta = end_point_beta - start_point_beta
-                        lab_angle_beta = angle_between(track_vector_beta, beam_vector_beta)
-                        angle_beta_dict[beta] = lab_angle_beta
-                        if plots:
-                            if model == DataArray.ransac_labels.value:
-                                plot_beta_points(start_point_beta, end_point_beta, ax8, ax9, ax10)
-                            if model == DataArray.merge_cdist.value:
-                                plot_beta_points(start_point_beta, end_point_beta, ax11, ax12, ax13)
+                if not RunParameters.use_beta_fraction.value:
+                    end_point, start_point, beam_vector, dirVecTrackNorm, track_mean, closest_points = get_directions(cut_data)
+                    distances_from_start = np.linalg.norm(closest_points - start_point, axis=1)
+                    angle_beta_dict = {}
+                    for beta in range(Optimize.BETA_RANGE_LOW.value, Optimize.BETA_RANGE_HIGH.value, Optimize.BETA_STEPS.value):
+                        mask_beta = (distances_from_start >= 0) & (distances_from_start <= beta)
+                        filtered_data = cut_data[mask_beta, :]
+                        if len(filtered_data) > 1:
+                            end_point_beta, start_point_beta, beam_vector_beta, dirVecTrackNorm_beta, track_mean_beta, closest_points_beta = get_directions(filtered_data)
+                            track_vector_beta = end_point_beta - start_point_beta
+                            lab_angle_beta = angle_between(track_vector_beta, beam_vector_beta)
+                            angle_beta_dict[beta] = lab_angle_beta
+                            if plots:
+                                if model == DataArray.ransac_labels.value:
+                                    plot_beta_points(start_point_beta, end_point_beta, ax8, ax9, ax10)
+                                if model == DataArray.merge_cdist.value:
+                                    plot_beta_points(start_point_beta, end_point_beta, ax11, ax12, ax13)
+                else:
+                    angle_beta_dict = {}
+                    step_size = (Optimize.BETA_RANGE_HIGH_FRACTION.value - Optimize.BETA_RANGE_LOW_FRACTION.value) / (Optimize.BETA_STEPS_FRACTION.value - 1)
+                    for i in range(int(Optimize.BETA_STEPS_FRACTION.value)):
+                        beta_fraction = Optimize.BETA_RANGE_LOW_FRACTION.value + i * step_size
+                        if model == DataArray.ransac_labels.value:
+                            filtered_data = segment_beta(cluster_data, mask, beta_fraction, model='ransac')
+                        if model == DataArray.merge_cdist.value:
+                            filtered_data = segment_beta(cluster_data, mask, beta_fraction, model='gmm')
+                        if len(filtered_data) > 1:
+                            end_point_beta, start_point_beta, beam_vector_beta, _, _, _ = get_directions(filtered_data)
+                            track_vector_beta = end_point_beta - start_point_beta
+                            lab_angle_beta = angle_between(track_vector_beta, beam_vector_beta)
+                            angle_beta_dict[int(beta_fraction*100)] = lab_angle_beta
                 lab_angles_beta[label] = angle_beta_dict
     return lab_angles_beta
 
@@ -1907,8 +1978,10 @@ for energy in excitation_energies:
                     # print(ranges_initial)
 
                     if RunParameters.optimize_beta.value:
-                        lab_angles_beta_ransac = calculate_beta(data_array, model = DataArray.ransac_labels.value)
+                        lab_angles_beta_ransac = calculate_beta(data_array, model = DataArray.ransac_labels.value, orl = old_ransac_labels)
                         ransac['beta'] = lab_angles_beta_ransac
+                        # print('RANSAC BETA')
+                        # print(lab_angles_beta_ransac)
                     else:
                         ransac['beta'] = {}
 
@@ -2009,6 +2082,8 @@ for energy in excitation_energies:
                     if RunParameters.optimize_beta.value:
                         lab_angles_beta_gmm = calculate_beta(data_array, model = DataArray.merge_cdist.value)
                         gmm['beta'] = lab_angles_beta_gmm
+                        # print('BETA GMM')
+                        # print(lab_angles_beta_gmm)
                     else:
                         gmm['beta'] = {}
 
