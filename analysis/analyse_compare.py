@@ -5,12 +5,12 @@ import os
 
 # Settings
 excitation_energies = [10]
-cm_angles = [1]
-base_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/new/compare"
+cm_angles = [1, 2, 3, 4, 5]
+base_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/new/ransac_fraction/"
 volume_min, volume_max = 10, 246
 beam_zone_min, beam_zone_max = 120, 134
-hist_range = (-50, 50)
-n_bins = 400
+hist_range = (-180, 180)
+n_bins = 1500
 
 def is_inside_volume(point):
     return all(volume_min <= coord <= volume_max for coord in point)
@@ -23,21 +23,23 @@ def extract_1track_vector(vec):
 
 def process_file(filepath, branch_angle, branch_phi, branch_start, branch_end, branch_inter, angle_type):
     diff_angles = []
+    event_ids = []
 
     file = ROOT.TFile.Open(filepath)
     if not file or file.IsZombie():
         print(f"Could not open {filepath}")
-        return diff_angles
+        return diff_angles, event_ids
 
     tree = file.Get("events")
     if not tree:
         print(f"No 'events' tree in {filepath}")
-        return diff_angles
+        return diff_angles, event_ids
 
     for event in tree:
         elab = getattr(event, angle_type)
         reco_angles = getattr(event, branch_angle)
         phi_angles = getattr(event, branch_phi)
+        eid = getattr(event, "eventid")
 
         sim_angle = elab[0]
 
@@ -45,30 +47,31 @@ def process_file(filepath, branch_angle, branch_phi, branch_start, branch_end, b
             continue
 
         phi = phi_angles[0]
-        if (70 <= abs(phi) <= 110):
-            continue  # discard based on phi angle
+        # if (70 <= abs(phi) <= 110):
+        #     continue  # discard based on phi angle
 
         start = extract_1track_vector(getattr(event, branch_start))
         end = extract_1track_vector(getattr(event, branch_end))
         inter = extract_1track_vector(getattr(event, branch_inter))
 
-        if not (is_inside_volume(start) and is_inside_volume(end) and is_inside_volume(inter)):
-            continue
+        # if not (is_inside_volume(start) and is_inside_volume(end) and is_inside_volume(inter)):
+        #     continue
 
-        if not is_outside_beam_zone(end[1]):
-            continue
+        # if not is_outside_beam_zone(end[1]):
+        #     continue
 
         angle_diff = reco_angles[0] - sim_angle
 
-        if abs(angle_diff) > 20:
-            eventid = getattr(event, "eventid")
-            print(f"{branch_angle} EventID {eventid} | angle_diff = {angle_diff:.2f} | file_path = {filepath}")
+        # eventid = getattr(event, "eventid")
+        # print(f"{branch_angle} EventID {eventid} | angle_diff = {angle_diff:.2f} | file_path = {filepath}")
 
         if hist_range[0] < angle_diff < hist_range[1]:
             diff_angles.append(angle_diff)
+            event_ids.append(eid[0])
 
     file.Close()
-    return diff_angles
+    return diff_angles, event_ids
+
 
 
 # Main loop
@@ -81,10 +84,19 @@ for energy in excitation_energies:
         file_list = glob.glob(pattern)
 
         for filepath in file_list:
-            ransac_diffs += process_file(filepath, "ransac_angles", "ransac_phi_angles",
-                                         "ransac_start", "ransac_end", "ransac_inter", "Elab")
-            gmm_diffs += process_file(filepath, "gmm_angles", "gmm_phi_angles",
-                                      "gmm_start", "gmm_end", "gmm_inter", "Elab")
+            print(filepath)
+            ransac_diff, ransac_ids = process_file(filepath, "ransac_angles", "ransac_phi_angles",
+                                                "ransac_start", "ransac_end", "ransac_inter", "Elab")
+            gmm_diff, gmm_ids = process_file(filepath, "gmm_angles", "gmm_phi_angles",
+                                            "gmm_start", "gmm_end", "gmm_inter", "Elab")
+
+            ransac_diffs += ransac_diff
+            gmm_diffs += gmm_diff
+
+            # Identify GMM-only events
+            gmm_only_ids = set(gmm_ids) - set(ransac_ids)
+            for eventid in gmm_only_ids:
+                print(f"EventID {eventid} is present in GMM but not in RANSAC for file: {filepath}")
 
         # Create canvas and histograms
         canvas = ROOT.TCanvas(f"c_{energy}_{cm}", f"Energy {energy} MeV, CM {cm}°", 1200, 600)

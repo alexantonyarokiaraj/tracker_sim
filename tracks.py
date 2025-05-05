@@ -668,10 +668,15 @@ def filter_track_data(cut_data_charge, track_above):
 
     return filtered_data
 
-def kinematics_ransac(data, fitted_models, useLineModelND):
+def kinematics_ransac(data_initial, fitted_models, useLineModelND, orl = None):
     # Define the beam line endpoints
-    data = data[data[:, DataArray.ransac_labels.value] != 20]
-    data = add_filters(data, model= int(DataArray.ransac_labels.value))
+
+    data_arr = add_filters(data_initial, model= int(DataArray.ransac_labels.value))
+    data_in = np.column_stack((data_arr, orl))
+    data = data_in[data_in[:, DataArray.ransac_labels.value] != 20]
+
+    print(data_in.shape, data_arr.shape)
+
     lab_angles_initial = {}
     intersections_initial = {}
     phi_angles_initial = {}
@@ -681,7 +686,6 @@ def kinematics_ransac(data, fitted_models, useLineModelND):
     ranges_final = {}
     energy_initial = {}
 
-
     ransac_labels = np.unique(data[:, DataArray.ransac_labels.value])
     for label in ransac_labels:
         # Get the points corresponding to the current label
@@ -689,7 +693,6 @@ def kinematics_ransac(data, fitted_models, useLineModelND):
 
         # Check if the cluster size is greater than 10
         if cluster_data.shape[0] <= 10:
-            print('KINEMATICS RANSAC SHAPE')
             continue  # Skip this cluster if it has 10 or fewer points
 
         # Calculate the mean y of the cluster
@@ -712,9 +715,61 @@ def kinematics_ransac(data, fitted_models, useLineModelND):
                 end_point_full, start_point_full, beam_vector_full, dirVecTrackNorm_full, track_mean_full, closest_points_full = get_directions(cut_data)
                 track_vector_full = end_point_full - start_point_full
                 intersection_point_full = closest_point_on_line1(start_point_full, track_vector_full, np.array([0,128,128]), beam_vector_full)
-                distances_from_start = np.linalg.norm(closest_points_full - start_point_full, axis=1)
-                mask_beta = (distances_from_start >= 0) & (distances_from_start <= 100)
-                filtered_data_beta = cut_data[mask_beta, :]
+                filtered_data_beta = np.array([])
+                if RunParameters.use_beta_fraction.value:
+                    beam_start = np.array([0.0, 128.0, 128.0])
+                    beam_end   = np.array([256.0, 128.0, 128.0])
+                    beam_dir   = beam_end - beam_start
+                    # Applying Segment fit here.
+
+                    pts_cdist = cluster_data[mask, :]
+                    segments = []
+
+                    for gmm_label_pval in np.unique(pts_cdist[:, DataArray.old_ransac_labels.value]):
+                        pts_pval = pts_cdist[pts_cdist[:, DataArray.old_ransac_labels.value] == gmm_label_pval, 0:3]
+                        if len(pts_pval) < 2:
+                            continue
+                        end_point_pval, start_point_pval, _, _, _, closest_points_pval = get_directions(pts_pval)
+                        segments.append({'pval_label': gmm_label_pval, 'start': start_point_pval, 'end':end_point_pval, 'length':np.linalg.norm(end_point_pval-start_point_pval), 'closest_points': closest_points_pval, 'points': pts_pval})
+                    for segment in segments:
+                        segment['d_beam'] = point_to_line_distance(segment['start'], beam_start, beam_dir)
+
+                    segments.sort(key=lambda s: s['d_beam'])
+
+                    total_len = sum(s['length'] for s in segments)
+
+                    cutoff = Optimize.BETA_FRACTION.value * total_len
+
+
+                    cum_len = 0.0
+                    selected_points = []
+
+                    for segment in segments:
+                        segment_length = segment['length']
+                        direction = segment['end'] - segment['start']
+                        direction_unit = direction / segment_length
+                        if cum_len + segment['length'] < cutoff:
+                            selected_points.append(segment['points'])
+                            cum_len += segment['length']
+                        else:
+                            remain = cutoff - cum_len
+                            distances_from_start = np.linalg.norm(segment['closest_points'] - segment['start'], axis=1)
+                            mask_beta_fraction = (distances_from_start >= 0) & (distances_from_start <= remain)
+                            selected_points.append(segment['points'][mask_beta_fraction])
+                            break
+
+                    # Concatenate selected points
+                    if selected_points:
+                        selected_pts_array = np.vstack(selected_points)
+
+                    filtered_data_beta = selected_pts_array
+
+                else:
+
+                    distances_from_start = np.linalg.norm(closest_points_full - start_point_full, axis=1)
+                    mask_beta = (distances_from_start >= 0) & (distances_from_start <= Optimize.BETA.value)
+                    filtered_data_beta = cut_data[mask_beta, :]
+
                 if len(filtered_data_beta) > 1:
                     end_point_beta, start_point_beta, beam_vector_beta, dirVecTrackNorm_beta, track_mean_beta, closest_points_beta = get_directions(filtered_data_beta)
                     track_vector_beta = end_point_beta - start_point_beta
@@ -1801,7 +1856,10 @@ for energy in excitation_energies:
                     data_array = np.column_stack((data_array, final_clusters))
                     data_array = np.column_stack((data_array, final_clusters))
 
+                    old_ransac_labels = np.array([])
+
                     if RunParameters.use_cij_ransac.value:
+                        old_ransac_labels = data_array[:, DataArray.ransac_labels.value]
                         ransac_filter_data_array = add_filters(data_array, model= int(DataArray.ransac_labels.value))
                         scattered_condition_rfda = ransac_filter_data_array[:, DataArray.scattered_track.value] == 1
                         scattered_above_mask_rfda = ransac_filter_data_array[:, DataArray.side_of_track.value] == 1
@@ -1830,8 +1888,7 @@ for energy in excitation_energies:
                         colorbars_ransac = plot_ransac(data_array, event_info)
 
                     print('Number of unique ransac reg labels', np.unique(data_array[:, DataArray.ransac_labels.value]))
-
-                    angles_ransac, intersections_ransac, start_point_ransac, end_point_ransac, phi_angle_ransac, ranges_initial, ranges_final = kinematics_ransac(data_array, fitted_models, False)
+                    angles_ransac, intersections_ransac, start_point_ransac, end_point_ransac, phi_angle_ransac, ranges_initial, ranges_final = kinematics_ransac(data_array, fitted_models, False, orl = old_ransac_labels)
                     print('RANSAC angles', angles_ransac, ranges_final)
                     ransac['angles'] = angles_ransac
                     ransac['intersections'] = intersections_ransac

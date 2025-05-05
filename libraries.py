@@ -19,15 +19,16 @@ class DataArray(Enum):
     side_of_track = 15
     closest_track = 16
     end_point_above_beam_zone = 17
+    old_ransac_labels = 18
 
 class RunParameters(Enum):
     sim = True
-    plots = True
+    plots = False
     debug=False
     final_plots_flag = False
     save_final_data=False
     with_missing_pads = True
-    batch_mode = False
+    batch_mode = True
     save_to_root = False
     save_python_figures = False
     optimize_alpha = False
@@ -36,9 +37,9 @@ class RunParameters(Enum):
     optimize_cdist = False
     optimize_pij = False
     optimize_multiplicity = False
-    save_root_file = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/new/compare/"
+    save_root_file = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/new/"
     tag = "compare"
-    exc_file_name = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/new/compare/"
+    exc_file_name = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/new/"
     range_lookup_table = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/LookupTable_e780_58Ni_68Ni_Alex.xlsx"
     range_energy_conversion_sheet = "range_energy_he_he_cf4_mixed"
     use_cij_ransac = True
