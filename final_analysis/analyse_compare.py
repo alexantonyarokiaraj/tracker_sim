@@ -6,7 +6,7 @@ import os
 # Settings
 excitation_energies = [10]
 cm_angles = [1, 2, 3, 4, 5]
-base_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/new/ransac_7/"
+base_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/gamma_2_run/"
 volume_min, volume_max = 10, 246
 beam_zone_min, beam_zone_max = 120, 134
 hist_range = (-20, 20)
@@ -61,7 +61,7 @@ def process_file(filepath, branch_angle, branch_phi, branch_start, branch_end, b
         if not is_outside_beam_zone(end[1]):
             continue
 
-        angle_diff = reco_angles[0] - sim_angle
+        angle_diff = sim_angle - reco_angles[0]
 
         # eventid = getattr(event, "eventid")
         # print(f"{branch_angle} EventID {eventid} | angle_diff = {angle_diff:.2f} | file_path = {filepath}")
@@ -74,14 +74,13 @@ def process_file(filepath, branch_angle, branch_phi, branch_start, branch_end, b
     return diff_angles, event_ids
 
 
-
 # Main loop
 for energy in excitation_energies:
     for cm in cm_angles:
         ransac_diffs = []
         gmm_diffs = []
 
-        pattern = os.path.join(base_path, f"compare_sim_5000_{energy}mev_{cm}cm_*_*.root")
+        pattern = os.path.join(base_path, f"gamma_sim_5000_{energy}mev_{cm}cm_*_*.root")
         file_list = glob.glob(pattern)
 
         for filepath in file_list:

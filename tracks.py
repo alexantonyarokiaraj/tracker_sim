@@ -1138,19 +1138,15 @@ def kinematics_gmm(data_initial, responsibilities, event_info):
 
             # Start Minimization
             lab_angles_resp = {}
-            range_1 = np.linspace(0, 0.01, 50)
-            range_2 = np.linspace(0.01, 0.1, 50)
-            range_3 = np.linspace(0.1, 0.2, 50)
-            range_4 = np.linspace(0.2, 0.3, 50)
-            range_5 = np.linspace(0.3, 0.4, 50)
-            range_6 = np.linspace(0.4, 0.5, 50)
-            range_7 = np.linspace(0.5, 1, 10)
+
             # Concatenate all ranges
             beam_zone_mask = (data[:, DataArray.Y.value] >= VolumeBoundaries.BEAM_ZONE_MIN.value-2) & (data[:, DataArray.Y.value] <= VolumeBoundaries.BEAM_ZONE_MAX.value+2)
             labels_for_current_label = data[:, DataArray.merge_cdist.value] == label
             not_belonging_to_label = ~labels_for_current_label
             inside_beam_zone_not_label = beam_zone_mask & not_belonging_to_label
-            res = np.concatenate([range_1, range_2, range_3, range_4, range_5, range_6, range_7])
+
+            res = np.linspace(0, 1.0, 5000)  # 5000 uniform-width bins
+
             gmm_indices = np.where(data[:, DataArray.merge_cdist.value] == label)[0]
             gmm_labels_raw = np.unique(data[gmm_indices, DataArray.gmm_labels.value])
             gmm_labels_raw = np.array(gmm_labels_raw, dtype=int)
@@ -1159,9 +1155,9 @@ def kinematics_gmm(data_initial, responsibilities, event_info):
             cut_data = cluster_data[mask, :3]
             cut_data_charge = cluster_data[mask, :4]
             if cut_data.size > 0 and len(filtered_data_beta) > 0:
-                end_point_fnew, start_point_fnew, beam_vector_fnew, dirVecTrackNorm_fnew, track_mean_fnew, closest_points_fnew = get_directions(cut_data)
-                distances_from_start_fnew = np.linalg.norm(closest_points_fnew - start_point_fnew, axis=1)
-                mask_beta_fnew = (distances_from_start_fnew >= 0) & (distances_from_start_fnew <= Optimize.BETA.value)
+                # end_point_fnew, start_point_fnew, beam_vector_fnew, dirVecTrackNorm_fnew, track_mean_fnew, closest_points_fnew = get_directions(cut_data)
+                # distances_from_start_fnew = np.linalg.norm(closest_points_fnew - start_point_fnew, axis=1)
+                # mask_beta_fnew = (distances_from_start_fnew >= 0) & (distances_from_start_fnew <= Optimize.BETA.value)
                 for res_threshold in res:
                     responsibility_threshold = res_threshold
                     responsibility_mask = np.any(responsibilities[:, gmm_labels_raw] > responsibility_threshold, axis=1)
@@ -1220,6 +1216,7 @@ def kinematics_gmm(data_initial, responsibilities, event_info):
                     ax12.scatter(data[final_mask, 1]+1, data[final_mask, 2]+1, marker = 'o')
                     ax13.scatter(data[final_mask, 0]+1, data[final_mask, 2]+1, marker = 'o')
 
+    # print(lab_angles_minimize)
     return lab_angles_initial, intersections_initial, lab_angles_minimize, start_point_initial, end_point_initial, closest_threshold_dict, closest_angle_dict, phi_angles_initial, data, ranges_initial, ranges_final
 
 # Function to plot the kinematics of GMM Clusters
@@ -2057,6 +2054,7 @@ for energy in excitation_energies:
                     angles_gmm, intersections_gmm, angles_minimize_gmm, start_point_gmm, end_point_gmm, closest_resp, closest_angle, phi_angle_gmm, data_with_filters, gmm_ranges_initial, gmm_ranges_final = kinematics_gmm(data_array, responsibilities, event_info)
 
                     print('GMM angles', angles_gmm, gmm_ranges_final, event_info.Elab)
+                    # print(angles_minimize_gmm)
                     gmm['angles'] = angles_gmm
                     gmm['intersections'] = intersections_gmm
                     gmm['start_point'] = start_point_gmm
