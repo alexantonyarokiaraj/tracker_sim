@@ -28,12 +28,12 @@ class RunParameters(Enum):
     final_plots_flag = False
     save_final_data=False
     with_missing_pads = True
-    batch_mode = True
+    batch_mode = False
     save_to_root = True
     save_python_figures = False
     optimize_alpha = False
     optimize_beta = False
-    optimize_gamma = True
+    optimize_gamma = False
     optimize_cdist = False
     optimize_pij = False
     optimize_multiplicity = False
@@ -44,6 +44,7 @@ class RunParameters(Enum):
     range_energy_conversion_sheet = "range_energy_he_he_cf4_mixed"
     use_cij_ransac = True
     use_beta_fraction = True
+    calculate_geometric_efficiency = True
 
 class VolumeBoundaries(Enum):
     VOLUME_MIN = 10
@@ -84,6 +85,8 @@ class FileNames(Enum):
     CALIBRATION_PADS = 'pad_calibration_actar.txt'
     MISSING_PADS = 'HitResponses.dat'
     CONVERSION_TABLE = 'LT_GANIL_NewCF_marine.dat'
+    CONFIG_FILE_EXCEL = 'LookupTable_e780_58Ni_68Ni_Alex.xlsx'
+    RANGE_ENERGY_CONVERSION_SHEET = "range_energy_he_he_cf4_mixed"
 
 class Reference(Enum):
     RANGE_EXTEND = 40

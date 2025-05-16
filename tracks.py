@@ -40,6 +40,14 @@ from collections import defaultdict
 import warnings
 from energy import Energy
 import pandas as pd
+from scipy import interpolate
+
+import math
+
+def truncate(number, digits):
+    factor = 10.0 ** digits
+    return math.trunc(number * factor) / factor
+
 
 np.random.seed(42)
 
@@ -112,6 +120,14 @@ line_length = 100
 transparency = 0.7
 calibration_table = pd.read_csv(FileNames.CALIBRATION_PADS.value, sep=" ", header=None)
 calibration_table.columns = ["chno", "xx", "yy", "par0", "par1", "chi"]
+range_lookup_table = FileNames.CONFIG_FILE_EXCEL.value
+sheet_ = FileNames.RANGE_ENERGY_CONVERSION_SHEET.value
+excel_data_df = pd.read_excel(range_lookup_table, sheet_name=sheet_)
+_TABLE = np.array(excel_data_df[['Range(mm)', 'Energy(keV)']])
+_TABLE = _TABLE[_TABLE[:, 0].argsort()]
+_TABLE_REVERSED = _TABLE[:, [1, 0]]  # Now it's [Energy, Range]
+# Optional: sort by energy just in case
+_TABLE_REVERSED = _TABLE_REVERSED[_TABLE_REVERSED[:, 0].argsort()]
 
 #######################################
 # Graphics
@@ -835,9 +851,12 @@ def kinematics_ransac(data_initial, fitted_models, useLineModelND, orl = None):
                     intersection_point_beta = closest_point_on_line1(start_point_beta, track_vector_beta, np.array([0,128,128]), beam_vector_beta)
                     lab_angles_initial[label] = round(lab_angle_beta, 2)
                     intersections_initial[label] = intersection_point_beta
-                    start_point_initial[label] = start_point_beta
-                    end_point_initial[label] = end_point_beta
+                    # start_point_initial[label] = start_point_beta
+                    # end_point_initial[label] = end_point_beta
                     phi_angles_initial[label] = phi_angle_beta
+                    end_point_full, start_point_full, beam_vector_full, dirVecTrackNorm_full, track_mean_full, closest_points_full = get_directions(cut_data)
+                    start_point_initial[label] = start_point_full
+                    end_point_initial[label] = end_point_full
                     endpts = extend_line_based_on_reference(start_point_beta, end_point_beta, start_point_full, end_point_full, intersection_point_beta, extra_start=float(Reference.RANGE_EXTEND.value))
                     en = Energy(cut_data_charge, endpts, calibration_table)
                     new_position, fit_energy_, line_vector_start_3d, unit_vector_3d, line_length_2d, line_vector_end_3d, histogram_array_new = en.calculate_profiles()
@@ -1187,8 +1206,8 @@ def kinematics_gmm(data_initial, responsibilities, event_info):
                 phi_angle_resp = calculate_phi_angle(track_vector_resp, beam_vector_resp)
                 lab_angles_initial[label] = round(lab_angle_resp, 2)
                 intersections_initial[label] = intersection_point_resp
-                start_point_initial[label] = start_point_resp
-                end_point_initial[label] = end_point_resp
+                start_point_initial[label] = start_point_full
+                end_point_initial[label] = end_point_full
                 phi_angles_initial[label] = phi_angle_resp
                 endpts = extend_line_based_on_reference(start_point_resp, end_point_resp, start_point_full, end_point_full, intersection_point_resp, extra_start=float(Reference.RANGE_EXTEND.value))
                 en = Energy(filter_track_data(cut_data_charge, side_flag), endpts, calibration_table)
@@ -1811,6 +1830,63 @@ def assign_beam_or_scattered(data_points, incoming_labels, beam_zone_min=VolumeB
 
     return updated_labels
 
+def range_energy_calculate(range_value):
+    range_table = _TABLE[:, 0]
+    energy_table = _TABLE[:, 1]
+
+    if range_value <= range_table[0]:
+        return truncate(energy_table[0], 2)
+    elif range_value >= range_table[-1]:
+        return truncate(energy_table[-1], 2)
+
+    f = interpolate.interp1d(range_table, energy_table)
+    required_energy = f(range_value)
+
+    return truncate(required_energy, 2)
+
+
+def energy_range_calculate(energy_value):
+    energy_table = _TABLE_REVERSED[:, 0]
+    range_table = _TABLE_REVERSED[:, 1]
+
+    # Handle out-of-bound energy values
+    if energy_value <= energy_table[0]:
+        return truncate(range_table[0], 2)
+    elif energy_value >= energy_table[-1]:
+        return truncate(range_table[-1], 2)
+
+    # Interpolate range from energy
+    f = interpolate.interp1d(energy_table, range_table)
+    required_range = f(energy_value)
+
+    return truncate(required_range, 2)
+
+
+def is_inside_volume(point, box_size=256, margin=10):
+    return np.all((margin <= point) & (point <= box_size - margin))
+
+def track_passes_all_conditions(vertex, direction, range_):
+    end_point = vertex + direction * range_
+
+    cond_vertex_inside = is_inside_volume(vertex)
+    cond_end_inside = is_inside_volume(end_point)
+    cond_end_outside_beam_zone = not (120 <= end_point[1] <= 134)
+
+    beam_start=np.array([0, 128, 128])
+    beam_end=np.array([256, 128, 128])
+    beam_vector = beam_end - beam_start
+    beam_vector = beam_vector / np.linalg.norm(beam_vector)
+
+    phi_angle = calculate_phi_angle(direction, beam_vector)
+
+    cond_phi_ok = not (70 <= abs(phi_angle) <= 110)
+    print(cond_vertex_inside, cond_end_inside, cond_end_outside_beam_zone, cond_phi_ok)
+    return all([
+        cond_vertex_inside,
+        cond_end_inside,
+        cond_end_outside_beam_zone,
+        cond_phi_ok
+    ])
 
 #######################################
 # Main Function
@@ -1830,6 +1906,9 @@ for energy in excitation_energies:
             root_file = root.TFile(path_output+RunParameters.tag.value+"_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".root", "UPDATE")
             print(root_file)
             result = create_tree_and_branches("events")
+
+        if RunParameters.calculate_geometric_efficiency.value:
+            arr_event = []
 
         EventInfo = namedtuple('Events', ['event_id', 'verX', 'verY', 'verZ', 'dirX', 'dirY', 'dirZ', 'Eenergy', 'Elab', 'ransac', 'gmm', 'end_points'])
         EventInfoList = []
@@ -1871,7 +1950,23 @@ for energy in excitation_energies:
                                                     Eenergy = round(entries.data.input_ejectile_energy, 2),
                                                     Elab = round(math.degrees(entries.data.input_theta_lab), 2)
                                                     )
-                    print(event_info.verX, event_info.verY, event_info.verZ, event_info.dirX, event_info.dirY, event_info.dirZ)
+                    if RunParameters.calculate_geometric_efficiency.value:
+                        print(event_info.verX, event_info.verY, event_info.verZ, event_info.dirX, event_info.dirY, event_info.dirZ, event_info.Eenergy, energy_range_calculate(event_info.Eenergy*1000))
+
+                        vertex = np.array([event_info.verX, event_info.verY, event_info.verZ])
+                        direction = np.array([event_info.dirX, event_info.dirY, event_info.dirZ])
+                        direction = direction / np.linalg.norm(direction)
+                        range_ = energy_range_calculate(event_info.Eenergy * 1000)
+
+                        if track_passes_all_conditions(vertex, direction, range_):
+                            print("Track is accepted.")
+                            arr_event.append([event_info.event_id, 1])
+                        else:
+                            print("Track is rejected.")
+                            arr_event.append([event_info.event_id, 0])
+
+                        # continue
+
                     # Get Input array and Visualize it
                     # data_array = [x, y, z, q]
                     if plots:
@@ -2054,7 +2149,7 @@ for energy in excitation_energies:
                     angles_gmm, intersections_gmm, angles_minimize_gmm, start_point_gmm, end_point_gmm, closest_resp, closest_angle, phi_angle_gmm, data_with_filters, gmm_ranges_initial, gmm_ranges_final = kinematics_gmm(data_array, responsibilities, event_info)
 
                     print('GMM angles', angles_gmm, gmm_ranges_final, event_info.Elab)
-                    # print(angles_minimize_gmm)
+                    print(start_point_gmm, end_point_gmm)
                     gmm['angles'] = angles_gmm
                     gmm['intersections'] = intersections_gmm
                     gmm['start_point'] = start_point_gmm
@@ -2190,6 +2285,8 @@ for energy in excitation_energies:
             exceptions_output_file = exceptions_output_path+RunParameters.tag.value+"_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".npy"
             print(exceptions_output_file)
             np.save(exceptions_output_file, np.array(exception_events))
+        # if RunParameters.calculate_geometric_efficiency.value:
+        #     np.save(str(energy)+"mev_"+str(angle)+"cm"+".npy",np.array(arr_event))
         # Define histogram parameters
         if plots:
             # print('Close Figure')
