@@ -5,7 +5,7 @@ import os
 
 # Settings
 excitation_energies = [10]
-cm_angles = [1, 2, 3, 4, 5]
+cm_angles = [5]
 base_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/gamma_2_run/"
 volume_min, volume_max = 10, 246
 beam_zone_min, beam_zone_max = 120, 134
@@ -21,7 +21,7 @@ def is_outside_beam_zone(y):
 def extract_1track_vector(vec):
     return [vec[0], vec[1], vec[2]]
 
-def process_file(filepath, branch_angle, branch_phi, branch_start, branch_end, branch_inter, input_angle):
+def process_file(filepath, branch_angle, branch_phi, branch_start, branch_end, branch_inter, input_angle, event_status=None):
     diff_angles = []
     event_ids = []
 
@@ -63,20 +63,26 @@ def process_file(filepath, branch_angle, branch_phi, branch_start, branch_end, b
 
         angle_diff = sim_angle - reco_angles[0]
 
-        # eventid = getattr(event, "eventid")
-        # print(f"{branch_angle} EventID {eventid} | angle_diff = {angle_diff:.2f} | file_path = {filepath}")
-
         if hist_range[0] < angle_diff < hist_range[1]:
             diff_angles.append(angle_diff)
             event_ids.append(eid[0])
-
+            if event_status is not None:
+                if event_status.get(int(eid[0]), 0) == 0:
+                    print('REJECTED TRACK', int(eid[0]))
+                # else:
+                #     print('ACCEPTED TRACK', int(eid[0]))
     file.Close()
     return diff_angles, event_ids
-
 
 # Main loop
 for energy in excitation_energies:
     for cm in cm_angles:
+
+        filename = f"{energy}mev_{cm}cm.npy"
+        status_array = np.load(filename)
+
+        event_status = {int(row[0]): int(row[1]) for row in status_array}
+
         ransac_diffs = []
         gmm_diffs = []
 
@@ -87,15 +93,15 @@ for energy in excitation_energies:
             ransac_diff, ransac_ids = process_file(filepath, "ransac_angles", "ransac_phi_angles",
                                                 "ransac_start", "ransac_end", "ransac_inter", "Elab")
             gmm_diff, gmm_ids = process_file(filepath, "gmm_angles", "gmm_phi_angles",
-                                            "gmm_start", "gmm_end", "gmm_inter", "Elab")
+                                            "gmm_start", "gmm_end", "gmm_inter", "Elab", event_status)
 
             ransac_diffs += ransac_diff
             gmm_diffs += gmm_diff
 
-            # # Identify GMM-only events
-            # gmm_only_ids = set(gmm_ids) - set(ransac_ids)
-            # for eventid in gmm_only_ids:
-            #     print(f"EventID {eventid} is present in GMM but not in RANSAC for file: {filepath}")
+            # Identify GMM-only events
+            gmm_only_ids = set(gmm_ids) - set(ransac_ids)
+            for eventid in gmm_only_ids:
+                print(f"EventID {eventid} is present in GMM but not in RANSAC for file: {filepath}")
 
         # Create canvas and histograms
         canvas = ROOT.TCanvas(f"c_{energy}_{cm}", f"Energy {energy} MeV, CM {cm}°", 1200, 600)
@@ -134,4 +140,4 @@ for energy in excitation_energies:
 
         canvas.Update()
         canvas.SaveAs(f"histogram_{energy}MeV_{cm}cm.png")
-        # canvas.WaitPrimitive()
+        canvas.WaitPrimitive()

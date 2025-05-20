@@ -535,7 +535,7 @@ def generate_true_labels(data_array, event_info):
         plt.draw()
     return data_array
 
-def plot_ransac(data_array, event_info):
+def plot_ransac(data_array, event_info, vertex=None, endpoint=None):
     labels = data_array[:, DataArray.ransac_labels.value]
     cmap = plt.cm.get_cmap("Dark2", len(np.unique(labels)))
     update_clear(ax8)
@@ -548,12 +548,18 @@ def plot_ransac(data_array, event_info):
     ax8.plot([event_info.verX, event_info.verX + line_length * event_info.dirX],[event_info.verY, event_info.verY + line_length * event_info.dirY],
                 color='blue', alpha=transparency)
     ax8.scatter(event_info.verX, event_info.verY, color='red', edgecolor='black', s=50, zorder=3)  # Circle for vertex
+    ax8.set_xlim(vertex[0]-RunParameters.zoom_in_length.value, endpoint[0]+RunParameters.zoom_in_length.value)
+    ax8.set_ylim(vertex[1]-RunParameters.zoom_in_length.value, endpoint[1]+RunParameters.zoom_in_length.value)
     ax9.plot([event_info.verY, event_info.verY + line_length * event_info.dirY],[event_info.verZ, event_info.verZ + line_length * event_info.dirZ],
                  color='blue', alpha=transparency)
     ax9.scatter(event_info.verY, event_info.verZ, color='red', edgecolor='black', s=50, zorder=3)  # Circle for vertex
+    ax9.set_xlim(vertex[1]-RunParameters.zoom_in_length.value, endpoint[1]+RunParameters.zoom_in_length.value)
+    ax9.set_ylim(vertex[2]-RunParameters.zoom_in_length.value, endpoint[2]+RunParameters.zoom_in_length.value)
     ax10.plot([event_info.verX, event_info.verX + line_length * event_info.dirX],[event_info.verZ, event_info.verZ + line_length * event_info.dirZ],
                  color='blue', alpha=transparency)
     ax10.scatter(event_info.verX, event_info.verZ, color='red', edgecolor='black', s=50, zorder=3)  # Circle for vertex
+    ax10.set_xlim(vertex[0]-RunParameters.zoom_in_length.value, endpoint[0]+RunParameters.zoom_in_length.value)
+    ax10.set_ylim(vertex[2]-RunParameters.zoom_in_length.value, endpoint[2]+RunParameters.zoom_in_length.value)
     plt.draw()
     return [colorbar4, colorbar5, colorbar6]
 
@@ -780,12 +786,22 @@ def kinematics_ransac(data_initial, fitted_models, useLineModelND, orl = None):
             #     ((cluster_data[:, DataArray.closest_track.value] == 1) | (cluster_data[:, DataArray.closest_track.value] == -1)) & # Column: (proximity_flag_col) = 1 or -1
             #     (cluster_data[:, DataArray.end_point_above_beam_zone.value] == 1) # Column 12: Track End point above the beam zone
             # )
-            mask = cluster_data[:, DataArray.scattered_track.value] == 1
+            print('Inside RANSAC Track', label)
+            mask1 = cluster_data[:, DataArray.scattered_track.value] == 1
+            if mean_y >= VolumeBoundaries.BEAM_ZONE_MAX.value:
+                track_position = 'above'
+                mask2 = cluster_data[:, DataArray.Y.value] > 128
+            else:
+                track_position = 'below'
+                mask2 = cluster_data[:, DataArray.Y.value] < 128
+            mask = mask1
             cut_data = cluster_data[mask, :3]
             cut_data_charge = cluster_data[mask, :4]
             if cut_data.size > 0:
+                print('Inside RANSAC Track masked', label)
                 # Fill the lab angles and intersections based on first PCA fit.
                 end_point_full, start_point_full, beam_vector_full, dirVecTrackNorm_full, track_mean_full, closest_points_full = get_directions(cut_data)
+                print(end_point_full, start_point_full)
                 track_vector_full = end_point_full - start_point_full
                 intersection_point_full = closest_point_on_line1(start_point_full, track_vector_full, np.array([0,128,128]), beam_vector_full)
                 filtered_data_beta = np.array([])
@@ -842,8 +858,10 @@ def kinematics_ransac(data_initial, fitted_models, useLineModelND, orl = None):
                     distances_from_start = np.linalg.norm(closest_points_full - start_point_full, axis=1)
                     mask_beta = (distances_from_start >= 0) & (distances_from_start <= Optimize.BETA.value)
                     filtered_data_beta = cut_data[mask_beta, :]
-
+                if plots:
+                    plot_lines(track_mean_full, dirVecTrackNorm_full, start_point_full, end_point_full, intersection_point_full, closest_points_full, ax8, ax9, ax10, color='blue', s=400)
                 if len(filtered_data_beta) > 1:
+                    print('Inside RANSAC Track masked filtered', label)
                     end_point_beta, start_point_beta, beam_vector_beta, dirVecTrackNorm_beta, track_mean_beta, closest_points_beta = get_directions(filtered_data_beta)
                     track_vector_beta = end_point_beta - start_point_beta
                     lab_angle_beta = angle_between(track_vector_beta, beam_vector_beta)
@@ -871,7 +889,6 @@ def kinematics_ransac(data_initial, fitted_models, useLineModelND, orl = None):
                     r2d, sd, ran_end_, en_end_, ran_max_, en_max_, charge_profile_x, charge_profile_y, charge_profile_x_s, charge_profile_y_s = en.energy_weighted(Optimize.ALPHA.value, new_position, fit_energy_, line_vector_start_3d, unit_vector_3d, line_length_2d, line_vector_end_3d, histogram_array_new)
                     ranges_final[label] = ran_end_
                     if plots:
-                        plot_lines(track_mean_full, dirVecTrackNorm_full, start_point_full, end_point_full, intersection_point_full, closest_points_full, ax8, ax9, ax10, color='blue', s=400)
                         plot_lines(track_mean_beta, dirVecTrackNorm_beta, start_point_beta, end_point_beta, intersection_point_beta, closest_points_beta, ax8, ax9, ax10, color='green', s=200)
                         plot_lines(track_mean_beta, dirVecTrackNorm_beta, endpts[0, :], endpts[1, :], intersection_point_beta, closest_points_beta, ax8, ax9, ax10, color='red', s=100)
                         plot_energy_distributions(ax15, r2d, sd, ran_end_, en_end_, ran_max_, en_max_,
@@ -987,7 +1004,7 @@ def fit_gmm_with_bic(data, max_components=10):
     return best_labels, best_n_components, responsibilities
 
 # Function to plot the GMM assigned clusters
-def plot_gmm(data_array, event_info, color = 'blue', size=50):
+def plot_gmm(data_array, event_info, color = 'blue', size=50, vertex=None, endpoint=None):
     labels = data_array[:, DataArray.merge_cdist.value]
     cmap = plt.cm.get_cmap("Dark2", len(np.unique(labels)))
     update_clear(ax11)
@@ -1001,12 +1018,18 @@ def plot_gmm(data_array, event_info, color = 'blue', size=50):
     ax11.plot([event_info.verX, event_info.verX + line_length * event_info.dirX],[event_info.verY, event_info.verY + line_length * event_info.dirY],
                 color=color, alpha=transparency)
     ax11.scatter(event_info.verX, event_info.verY, color=color, edgecolor='black', s=size, zorder=3)  # Circle for vertex
+    ax11.set_xlim(vertex[0]-RunParameters.zoom_in_length.value, endpoint[0]+RunParameters.zoom_in_length.value)
+    ax11.set_ylim(vertex[1]-RunParameters.zoom_in_length.value, endpoint[1]+RunParameters.zoom_in_length.value)
     ax12.plot([event_info.verY, event_info.verY + line_length * event_info.dirY],[event_info.verZ, event_info.verZ + line_length * event_info.dirZ],
                  color=color, alpha=transparency)
     ax12.scatter(event_info.verY, event_info.verZ, color=color, edgecolor='black', s=size, zorder=3)  # Circle for vertex
+    ax12.set_xlim(vertex[1]-RunParameters.zoom_in_length.value, endpoint[1]+RunParameters.zoom_in_length.value)
+    ax12.set_ylim(vertex[2]-RunParameters.zoom_in_length.value, endpoint[2]+RunParameters.zoom_in_length.value)
     ax13.plot([event_info.verX, event_info.verX + line_length * event_info.dirX],[event_info.verZ, event_info.verZ + line_length * event_info.dirZ],
                  color=color, alpha=transparency)
     ax13.scatter(event_info.verX, event_info.verZ, color=color, edgecolor='black', s=size, zorder=3)  # Circle for vertex
+    ax13.set_xlim(vertex[0]-RunParameters.zoom_in_length.value, endpoint[0]+RunParameters.zoom_in_length.value)
+    ax13.set_ylim(vertex[2]-RunParameters.zoom_in_length.value, endpoint[2]+RunParameters.zoom_in_length.value)
     plt.draw()
     # print('GMM colorbar', [colorbar7, colorbar8, colorbar9])
     return [colorbar7, colorbar8, colorbar9]
@@ -1593,16 +1616,16 @@ def plot_lines(track_mean, dirVecTrackNorm, start_point, end_point, intersection
     line_end = track_mean + line_length * dirVecTrackNorm
     ax11.scatter(start_point[0], start_point[1], color=color, marker='x', label='Start Point', s=s)
     ax11.scatter(end_point[0], end_point[1], color=color, marker='x', label='End Point', s=int(s/2))
-    # ax11.set_xlim(start_point[0]-10, end_point[0]+10)
-    # ax11.set_ylim(start_point[1]-10, end_point[1]+10)
+    # ax11.set_xlim(start_point[0]-20, end_point[0]+20)
+    # ax11.set_ylim(start_point[1]-20, end_point[1]+20)
     ax12.scatter(start_point[1], start_point[2], color=color, marker='x', label='Start Point', s=s)
     ax12.scatter(end_point[1], end_point[2], color=color, marker='x', label='End Point', s=int(s/2))
-    # ax12.set_xlim(start_point[1]-10, end_point[1]+10)
-    # ax12.set_ylim(start_point[2]-10, end_point[2]+10)
+    # ax12.set_xlim(start_point[1]-20, end_point[1]+20)
+    # ax12.set_ylim(start_point[2]-20, end_point[2]+20)
     ax13.scatter(start_point[0], start_point[2], color=color, marker='x', label='Start Point', s=s)
     ax13.scatter(end_point[0], end_point[2], color=color, marker='x', label='End Point', s=int(s/2))
-    # ax13.set_xlim(start_point[0]-10, end_point[0]+10)
-    # ax13.set_ylim(start_point[2]-10, end_point[2]+10)
+    # ax13.set_xlim(start_point[0]-20, end_point[0]+20)
+    # ax13.set_ylim(start_point[2]-20, end_point[2]+20)
     ax11.plot([line_start[0], line_end[0]], [line_start[1], line_end[1]], label=f'Fitted Line')
     ax11.scatter(intersection_point[0], intersection_point[1], color=color, marker='o', label='Intersection Point', s=100)
     ax12.plot([line_start[1], line_end[1]], [line_start[2], line_end[2]], label=f'Fitted Line')
@@ -1878,6 +1901,7 @@ def track_passes_all_conditions(vertex, direction, range_):
     beam_vector = beam_vector / np.linalg.norm(beam_vector)
 
     phi_angle = calculate_phi_angle(direction, beam_vector)
+    print('input_phi_angle', phi_angle, end_point)
 
     cond_phi_ok = not (70 <= abs(phi_angle) <= 110)
     print(cond_vertex_inside, cond_end_inside, cond_end_outside_beam_zone, cond_phi_ok)
@@ -1964,7 +1988,7 @@ for energy in excitation_energies:
                         else:
                             print("Track is rejected.")
                             arr_event.append([event_info.event_id, 0])
-
+                        end_point = vertex + direction * range_
                         # continue
 
                     # Get Input array and Visualize it
@@ -2048,11 +2072,11 @@ for energy in excitation_energies:
                             data_array[scattered_below_rfda, DataArray.ransac_labels.value] = ransac_filter_final_clusters_below
 
                     if plots:
-                        colorbars_ransac = plot_ransac(data_array, event_info)
+                        colorbars_ransac = plot_ransac(data_array, event_info, vertex=vertex, endpoint=end_point)
 
                     print('Number of unique ransac reg labels', np.unique(data_array[:, DataArray.ransac_labels.value]))
                     angles_ransac, intersections_ransac, start_point_ransac, end_point_ransac, phi_angle_ransac, ranges_initial, ranges_final = kinematics_ransac(data_array, fitted_models, False, orl = old_ransac_labels)
-                    print('RANSAC angles', angles_ransac, ranges_final)
+                    print('RANSAC angles', angles_ransac, ranges_final, phi_angle_ransac, start_point_ransac, end_point_ransac, intersections_ransac)
                     ransac['angles'] = angles_ransac
                     ransac['intersections'] = intersections_ransac
                     ransac['start_point'] = start_point_ransac
@@ -2144,11 +2168,11 @@ for energy in excitation_energies:
                     gmm['components'] = n_comp
 
                     if plots:
-                        colorbars_gmm = plot_gmm(data_array, event_info)
+                        colorbars_gmm = plot_gmm(data_array, event_info, vertex=vertex, endpoint=end_point)
 
                     angles_gmm, intersections_gmm, angles_minimize_gmm, start_point_gmm, end_point_gmm, closest_resp, closest_angle, phi_angle_gmm, data_with_filters, gmm_ranges_initial, gmm_ranges_final = kinematics_gmm(data_array, responsibilities, event_info)
 
-                    print('GMM angles', angles_gmm, gmm_ranges_final, event_info.Elab)
+                    print('GMM angles', angles_gmm, gmm_ranges_final, event_info.Elab, phi_angle_gmm)
                     print(start_point_gmm, end_point_gmm)
                     gmm['angles'] = angles_gmm
                     gmm['intersections'] = intersections_gmm
@@ -2260,7 +2284,7 @@ for energy in excitation_energies:
                         next_pressed = False
                         if save_python_figures:
                             next_pressed = True
-                            fig.savefig('event_'+str(entries.data.event)+'.png')
+                            fig.savefig(RunParameters.save_root_fig.value+'event_'+str(entries.data.event)+'.png')
                         while not next_pressed:
                             plt.waitforbuttonpress(0.1)
                         if next_pressed:
