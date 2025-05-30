@@ -95,6 +95,7 @@ def beta_sigma_graph(beta_diff_map, label, color, energy, cm):
 
 # Main loop
 for energy in excitation_energies:
+    all_gmm_data = []
     for cm in cm_angles:
         ransac_beta_diff_map = defaultdict(list)
         gmm_beta_diff_map = defaultdict(list)
@@ -122,6 +123,12 @@ for energy in excitation_energies:
         gr_ransac = beta_sigma_graph(ransac_beta_diff_map, "RANSAC", ROOT.kBlue, energy, cm)
         gr_gmm = beta_sigma_graph(gmm_beta_diff_map, "GMM", ROOT.kRed, energy, cm)
 
+        x = ROOT.Double()
+        y = ROOT.Double()
+        for i in range(gr_gmm.GetN()):
+            gr_gmm.GetPoint(i, x, y)
+            all_gmm_data.append([cm, float(x), float(y)])
+
         canvas = ROOT.TCanvas(f"c_sigma_{energy}_{cm}", "", 800, 600)
         mg = ROOT.TMultiGraph()
         mg.Add(gr_ransac, "LP")
@@ -135,5 +142,13 @@ for energy in excitation_energies:
         legend.Draw()
 
         canvas.Update()
-        canvas.SaveAs(f"sigma_vs_beta_{energy}MeV_{cm}cm.png")
+        # canvas.SaveAs(f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta/histograms/sigma_vs_beta_{energy}MeV_{cm}cm.png")
         # canvas.WaitPrimitive()
+
+    # Convert and save the combined data
+    gmm_array = np.array(all_gmm_data)
+
+    output_array_dir = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta/histograms/"
+    os.makedirs(output_array_dir, exist_ok=True)
+
+    np.save(os.path.join(output_array_dir, f"gmm_sigma_vs_beta_all_angles_{energy}MeV.npy"), gmm_array)
