@@ -754,8 +754,6 @@ def kinematics_ransac(data_initial, fitted_models, useLineModelND, orl = None):
     data_in = np.column_stack((data_arr, orl))
     data = data_in[data_in[:, DataArray.ransac_labels.value] != 20]
 
-    print(data_in.shape, data_arr.shape)
-
     lab_angles_initial = {}
     intersections_initial = {}
     phi_angles_initial = {}
@@ -786,7 +784,6 @@ def kinematics_ransac(data_initial, fitted_models, useLineModelND, orl = None):
             #     ((cluster_data[:, DataArray.closest_track.value] == 1) | (cluster_data[:, DataArray.closest_track.value] == -1)) & # Column: (proximity_flag_col) = 1 or -1
             #     (cluster_data[:, DataArray.end_point_above_beam_zone.value] == 1) # Column 12: Track End point above the beam zone
             # )
-            print('Inside RANSAC Track', label)
             mask1 = cluster_data[:, DataArray.scattered_track.value] == 1
             if mean_y >= VolumeBoundaries.BEAM_ZONE_MAX.value:
                 track_position = 'above'
@@ -798,10 +795,8 @@ def kinematics_ransac(data_initial, fitted_models, useLineModelND, orl = None):
             cut_data = cluster_data[mask, :3]
             cut_data_charge = cluster_data[mask, :4]
             if cut_data.size > 0:
-                print('Inside RANSAC Track masked', label)
                 # Fill the lab angles and intersections based on first PCA fit.
                 end_point_full, start_point_full, beam_vector_full, dirVecTrackNorm_full, track_mean_full, closest_points_full = get_directions(cut_data)
-                print(end_point_full, start_point_full)
                 track_vector_full = end_point_full - start_point_full
                 intersection_point_full = closest_point_on_line1(start_point_full, track_vector_full, np.array([0,128,128]), beam_vector_full)
                 filtered_data_beta = np.array([])
@@ -861,7 +856,6 @@ def kinematics_ransac(data_initial, fitted_models, useLineModelND, orl = None):
                 if plots:
                     plot_lines(track_mean_full, dirVecTrackNorm_full, start_point_full, end_point_full, intersection_point_full, closest_points_full, ax8, ax9, ax10, color='blue', s=400)
                 if len(filtered_data_beta) > 1:
-                    print('Inside RANSAC Track masked filtered', label)
                     end_point_beta, start_point_beta, beam_vector_beta, dirVecTrackNorm_beta, track_mean_beta, closest_points_beta = get_directions(filtered_data_beta)
                     track_vector_beta = end_point_beta - start_point_beta
                     lab_angle_beta = angle_between(track_vector_beta, beam_vector_beta)
