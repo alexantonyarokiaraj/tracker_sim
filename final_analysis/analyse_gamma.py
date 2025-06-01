@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 
 # Settings
 excitation_energies = [10]
-cm_angles = [1, 2, 3, 4, 5]
-base_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/gamma_2_run/"
+cm_angles = [1]
+base_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/gamma/"
 volume_min, volume_max = 10, 246
 beam_zone_min, beam_zone_max = 120, 134
 hist_range = (-20, 20)
@@ -66,10 +66,10 @@ def process_file_gmm_resp(filepath, res, input_angle, branch_resp, branch_resp_a
         responsibilities = getattr(event, branch_resp)
         angles = getattr(event, branch_resp_angle)
 
-        # print(responsibilities)
+        print(responsibilities)
 
-        # if len(responsibilities) != len(angles):
-        #     continue
+        if len(responsibilities) != len(angles):
+            continue
 
         for resp_val, reco_angle in zip(responsibilities, angles):
             diff = sim_angle - reco_angle
@@ -78,7 +78,7 @@ def process_file_gmm_resp(filepath, res, input_angle, branch_resp, branch_resp_a
                 if 0 <= idx < len(res) - 1:
                     event_bin_key = (i_event, idx)
                     if event_bin_key in seen_event_bin_pairs:
-                        # print(f"Deduplicating event {i_event}, bin index {idx} (resp = {resp_val:.6f})")
+                        print(f"Deduplicating event {i_event}, bin index {idx} (resp = {resp_val:.6f})")
                         continue
                     seen_event_bin_pairs.add(event_bin_key)
                     resp_bins[idx].append(diff)
@@ -126,4 +126,4 @@ for energy in excitation_energies:
             array_save_list.append([energy, cm, bin_low, bin_high, len(diffs), mean, sigma])
 
     array_save = np.array(array_save_list)
-    np.save("angle_diff_resp.npy", array_save)
+    np.save("/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/gamma/arrays/angle_diff_resp.npy", array_save)

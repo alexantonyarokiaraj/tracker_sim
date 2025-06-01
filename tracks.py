@@ -1091,7 +1091,6 @@ def kinematics_gmm(data_initial, responsibilities, event_info):
                 end_point_full, start_point_full, beam_vector_full, dirVecTrackNorm_full, track_mean_full, closest_points_full = get_directions(cut_data)
                 track_vector_full = end_point_full - start_point_full
                 intersection_point_full = closest_point_on_line1(start_point_full, track_vector_full, np.array([0,128,128]), beam_vector_full)
-
                 filtered_data_beta = np.array([])
                 if RunParameters.use_beta_fraction.value:
                     beam_start = np.array([0.0, 128.0, 128.0])
@@ -1194,7 +1193,7 @@ def kinematics_gmm(data_initial, responsibilities, event_info):
                 # end_point_fnew, start_point_fnew, beam_vector_fnew, dirVecTrackNorm_fnew, track_mean_fnew, closest_points_fnew = get_directions(cut_data)
                 # distances_from_start_fnew = np.linalg.norm(closest_points_fnew - start_point_fnew, axis=1)
                 # mask_beta_fnew = (distances_from_start_fnew >= 0) & (distances_from_start_fnew <= Optimize.BETA.value)
-                for res_threshold in res:
+                for idx_res, res_threshold in enumerate(res):
                     responsibility_threshold = res_threshold
                     responsibility_mask = np.any(responsibilities[:, gmm_labels_raw] > responsibility_threshold, axis=1)
                     final_mask = inside_beam_zone_not_label & responsibility_mask
@@ -1202,7 +1201,7 @@ def kinematics_gmm(data_initial, responsibilities, event_info):
                     end_point_resp, start_point_resp, beam_vector_resp, dirVecTrackNorm_resp, track_mean_resp, closest_points_resp = get_directions(data_for_angle)
                     track_vector_resp = end_point_resp - start_point_resp
                     lab_angle_p = angle_between(track_vector_resp, beam_vector_resp)
-                    lab_angles_resp[res_threshold] = round(lab_angle_p, 2)
+                    lab_angles_resp[idx_res] = round(lab_angle_p, 2)
                 lab_angles_minimize[label] = lab_angles_resp
                 closest_threshold, closest_angle = min(lab_angles_resp.items(), key=lambda item: abs(item[1] - event_info.Elab))
                 closest_threshold_dict[label] = closest_threshold
@@ -1238,10 +1237,10 @@ def kinematics_gmm(data_initial, responsibilities, event_info):
                         ranges[alpha] = (ran_end_, ran_max_)
                     ranges_initial[label] = ranges
                 r2d, sd, ran_end_, en_end_, ran_max_, en_max_, charge_profile_x, charge_profile_y, charge_profile_x_s, charge_profile_y_s = en.energy_weighted(Optimize.ALPHA.value, new_position, fit_energy_, line_vector_start_3d, unit_vector_3d, line_length_2d, line_vector_end_3d, histogram_array_new)
-                print('Energy Loss Profile')
-                print(((en_max_-en_end_)-(ran_end_-ran_max_))/en_max_)
+                # print('Energy Loss Profile')
+                # print(((en_max_-en_end_)-(ran_end_-ran_max_))/en_max_)
                 ranges_final[label] = ran_end_
-                print('Lowest Angle, Threshold', round(angle_between(track_vector_resp, beam_vector_resp), 2), closest_threshold*100)
+                # print('Lowest Angle, Threshold', round(angle_between(track_vector_resp, beam_vector_resp), 2), closest_threshold*100)
                 # np.save('data_array_gamma_mask.npy', data[final_mask, :])
                 if plots:
                     plot_lines(track_mean_resp, dirVecTrackNorm_resp, endpts[0, :], endpts[1, :], intersection_point_resp, closest_points_resp, ax11, ax12, ax13, color='yellow', s=300)
@@ -2157,7 +2156,7 @@ for energy in excitation_energies:
                         print('Multiplicity Distances')
                         print(cdist_dict)
 
-                    # np.save('data_array_gamma.npy',data_array)
+                    np.save('/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta/histograms/data_array_beta.npy',data_array)
 
                     gmm['components'] = n_comp
 
