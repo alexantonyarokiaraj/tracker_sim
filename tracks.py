@@ -1152,6 +1152,7 @@ def kinematics_gmm(data_initial, responsibilities, event_info):
                     lab_angle_beta = angle_between(track_vector_beta, beam_vector_beta)
                     phi_angle_beta = calculate_phi_angle(track_vector_beta, beam_vector_beta)
                     intersection_point_beta = closest_point_on_line1(start_point_beta, track_vector_beta, np.array([0,128,128]), beam_vector_beta)
+                    print('BETA FIT', intersection_point_beta, end_point_beta)
                     # lab_angles_initial[label] = round(lab_angle_beta, 2)
                     # intersections_initial[label] = intersection_point_beta
                     # start_point_initial[label] = start_point_beta
@@ -1217,6 +1218,7 @@ def kinematics_gmm(data_initial, responsibilities, event_info):
                 end_point_resp, start_point_resp, beam_vector_resp, dirVecTrackNorm_resp, track_mean_resp, closest_points_resp = get_directions(data_for_angle)
                 track_vector_resp = end_point_resp - start_point_resp
                 intersection_point_resp = closest_point_on_line1(start_point_resp, track_vector_resp, np.array([0,128,128]), beam_vector_resp)
+                print('GAMMA FIT', intersection_point_resp, end_point_resp)
                 # intersections_final[label] = intersection_point_resp
                 lab_angle_resp = angle_between(track_vector_resp, beam_vector_resp)
                 phi_angle_resp = calculate_phi_angle(track_vector_resp, beam_vector_resp)
@@ -1241,7 +1243,7 @@ def kinematics_gmm(data_initial, responsibilities, event_info):
                 # print(((en_max_-en_end_)-(ran_end_-ran_max_))/en_max_)
                 ranges_final[label] = ran_end_
                 # print('Lowest Angle, Threshold', round(angle_between(track_vector_resp, beam_vector_resp), 2), closest_threshold*100)
-                # np.save('data_array_gamma_mask.npy', data[final_mask, :])
+                np.save('/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/gamma_2_run/histograms/data_array_gamma_mask.npy', data[final_mask, :])
                 if plots:
                     plot_lines(track_mean_resp, dirVecTrackNorm_resp, endpts[0, :], endpts[1, :], intersection_point_resp, closest_points_resp, ax11, ax12, ax13, color='yellow', s=300)
                     plot_energy_distributions(ax16, r2d, sd, ran_end_, en_end_, ran_max_, en_max_,
@@ -2156,7 +2158,7 @@ for energy in excitation_energies:
                         print('Multiplicity Distances')
                         print(cdist_dict)
 
-                    np.save('/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta/histograms/data_array_beta.npy',data_array)
+                    np.save('/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/gamma_2_run/histograms/data_array_gamma.npy',data_array)
 
                     gmm['components'] = n_comp
 

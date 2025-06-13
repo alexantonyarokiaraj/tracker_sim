@@ -5,7 +5,7 @@ import os
 
 # Settings
 excitation_energies = [10]
-cm_angles = [5]
+cm_angles = [1, 2, 3, 4, 5]
 base_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/gamma_2_run/"
 volume_min, volume_max = 10, 246
 beam_zone_min, beam_zone_max = 120, 134
@@ -66,9 +66,9 @@ def process_file(filepath, branch_angle, branch_phi, branch_start, branch_end, b
         if hist_range[0] < angle_diff < hist_range[1]:
             diff_angles.append(angle_diff)
             event_ids.append(eid[0])
-            if event_status is not None:
-                if event_status.get(int(eid[0]), 0) == 0:
-                    print('REJECTED TRACK', int(eid[0]))
+            # if event_status is not None:
+            #     if event_status.get(int(eid[0]), 0) == 0:
+            #         print('REJECTED TRACK', int(eid[0]))
                 # else:
                 #     print('ACCEPTED TRACK', int(eid[0]))
     file.Close()
@@ -78,10 +78,10 @@ def process_file(filepath, branch_angle, branch_phi, branch_start, branch_end, b
 for energy in excitation_energies:
     for cm in cm_angles:
 
-        filename = f"{energy}mev_{cm}cm.npy"
-        status_array = np.load(filename)
+        # filename = f"{energy}mev_{cm}cm.npy"
+        # status_array = np.load(filename)
 
-        event_status = {int(row[0]): int(row[1]) for row in status_array}
+        # event_status = {int(row[0]): int(row[1]) for row in status_array}
 
         ransac_diffs = []
         gmm_diffs = []
@@ -93,7 +93,7 @@ for energy in excitation_energies:
             ransac_diff, ransac_ids = process_file(filepath, "ransac_angles", "ransac_phi_angles",
                                                 "ransac_start", "ransac_end", "ransac_inter", "Elab")
             gmm_diff, gmm_ids = process_file(filepath, "gmm_angles", "gmm_phi_angles",
-                                            "gmm_start", "gmm_end", "gmm_inter", "Elab", event_status)
+                                            "gmm_start", "gmm_end", "gmm_inter", "Elab")
 
             ransac_diffs += ransac_diff
             gmm_diffs += gmm_diff
@@ -115,7 +115,6 @@ for energy in excitation_energies:
         for diff in gmm_diffs:
             h_gmm.Fill(diff)
 
-        # Stats
         def annotate_hist(hist):
             entries = hist.GetEntries()
             mean = hist.GetMean()
@@ -133,10 +132,22 @@ for energy in excitation_energies:
         h_ransac.Draw()
         annotate_hist(h_ransac)
 
+        # Add label (a)
+        label_a = ROOT.TLatex()
+        label_a.SetNDC()
+        label_a.SetTextSize(0.04)
+        label_a.DrawLatex(0.1, 0.92, "(a)")
+
         canvas.cd(2)
         h_gmm.SetLineColor(ROOT.kRed)
         h_gmm.Draw()
         annotate_hist(h_gmm)
+
+        # Add label (b)
+        label_b = ROOT.TLatex()
+        label_b.SetNDC()
+        label_b.SetTextSize(0.04)
+        label_b.DrawLatex(0.1, 0.92, "(b)")
 
         canvas.Update()
         canvas.SaveAs(f"histogram_{energy}MeV_{cm}cm.png")

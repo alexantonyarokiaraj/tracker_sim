@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 
 # Settings
 excitation_energies = [10]
-cm_angles = [1]
-base_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/gamma/"
+cm_angles = [1, 2, 3, 4, 5]
+base_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/gamma_2_run/"
 volume_min, volume_max = 10, 246
 beam_zone_min, beam_zone_max = 120, 134
 hist_range = (-20, 20)
@@ -66,28 +66,27 @@ def process_file_gmm_resp(filepath, res, input_angle, branch_resp, branch_resp_a
         responsibilities = getattr(event, branch_resp)
         angles = getattr(event, branch_resp_angle)
 
-        print(responsibilities)
+        # print(responsibilities)
 
-        if len(responsibilities) != len(angles):
-            continue
+        # if len(responsibilities) != len(angles):
+        #     continue
 
-        for resp_val, reco_angle in zip(responsibilities, angles):
+        for idx_1, reco_angle in zip(responsibilities, angles):
             diff = sim_angle - reco_angle
+            idx = int(idx_1)
             if hist_range[0] < diff < hist_range[1]:
-                idx = np.searchsorted(res, resp_val, side="right") - 1
                 if 0 <= idx < len(res) - 1:
                     event_bin_key = (i_event, idx)
                     if event_bin_key in seen_event_bin_pairs:
-                        print(f"Deduplicating event {i_event}, bin index {idx} (resp = {resp_val:.6f})")
+                        print(f"Deduplicating event {i_event}, bin index {idx} (resp ≈ {res[idx]:.6f})")
                         continue
                     seen_event_bin_pairs.add(event_bin_key)
                     resp_bins[idx].append(diff)
 
+
     file.Close()
     return resp_bins
 
-
-# Assuming res, n_bins, hist_range are already defined elsewhere in your script
 
 array_save_list = []
 
@@ -95,7 +94,6 @@ array_save_list = []
 for energy in excitation_energies:
     for cm in cm_angles:
         resp_diff_map = defaultdict(list)
-        # Pattern to match files
         pattern = os.path.join(base_path, f"gamma_sim_5000_{energy}mev_{cm}cm_*_*.root")
         file_list = glob.glob(pattern)
 
@@ -111,19 +109,22 @@ for energy in excitation_energies:
         for idx in sorted(resp_diff_map.keys()):
             diffs = resp_diff_map[idx]
             if len(diffs) < 5:
-                continue  # Skip if there are too few data points
+                continue  # Skip bins with too few points
 
             bin_low = res[idx]
-            bin_high = res[idx + 1] if idx + 1 < len(res) else res[idx] + 0.01
+            bin_high = res[idx + 1] if idx + 1 < len(res) else res[idx] + (res[1] - res[0])
             hist = ROOT.TH1F(f"hist_resp_{energy}_{cm}_{idx}", "", n_bins, hist_range[0], hist_range[1])
             for d in diffs:
                 hist.Fill(d)
 
-            # Compute mean and standard deviation for this bin
+            # Compute stats
             mean = hist.GetMean()
             sigma = hist.GetStdDev()
             print(f"Resp [{bin_low:.4f}, {bin_high:.4f}): N={len(diffs)}, Mean={mean:.4f}, Sigma={sigma:.4f}")
+
+            # Store values with responsibility bin range, not index
             array_save_list.append([energy, cm, bin_low, bin_high, len(diffs), mean, sigma])
 
-    array_save = np.array(array_save_list)
-    np.save("/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/gamma/arrays/angle_diff_resp.npy", array_save)
+# Save after processing all energy/angle combinations
+array_save = np.array(array_save_list)
+np.save("/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/gamma_2_run/arrays/angle_diff_resp.npy", array_save)
