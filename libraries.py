@@ -23,12 +23,12 @@ class DataArray(Enum):
 
 class RunParameters(Enum):
     sim = True
-    plots = False
+    plots = True
     debug=False
     final_plots_flag = False
     save_final_data=False
     with_missing_pads = True
-    batch_mode = True
+    batch_mode = False
     save_to_root = False
     save_python_figures = False
     zoom_in_length = 40
@@ -38,15 +38,16 @@ class RunParameters(Enum):
     optimize_cdist = False
     optimize_pij = False
     optimize_multiplicity = False
-    save_root_file = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/test/"
+    save_root_file = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/recursive_ransac_5/"
     save_root_fig = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/images/compare/1cm/"
-    tag = "gamma"
-    exc_file_name = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/test/"
+    tag = "iransac"
+    exc_file_name = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/recursive_ransac_5/"
     range_lookup_table = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/LookupTable_e780_58Ni_68Ni_Alex.xlsx"
     range_energy_conversion_sheet = "range_energy_he_he_cf4_mixed"
     use_cij_ransac = True
     use_beta_fraction = True
     calculate_geometric_efficiency = True
+    use_iterative_ransac = False
 
 class VolumeBoundaries(Enum):
     VOLUME_MIN = 10

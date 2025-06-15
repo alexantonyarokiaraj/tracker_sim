@@ -19,7 +19,7 @@ from matplotlib.colorbar import Colorbar
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from collections import namedtuple
 import math
-from ransac import find_multiple_lines_ransac
+from ransac import find_multiple_lines_ransac, find_iterative_lines_ransac
 from sklearn.linear_model import LinearRegression
 from sklearn.mixture import GaussianMixture
 from sklearn.decomposition import PCA
@@ -535,7 +535,7 @@ def generate_true_labels(data_array, event_info):
         plt.draw()
     return data_array
 
-def plot_ransac(data_array, event_info, vertex=None, endpoint=None):
+def plot_ransac(data_array, event_info, vertex=None, endpoint=None, end_point_geom=None):
     labels = data_array[:, DataArray.ransac_labels.value]
     cmap = plt.cm.get_cmap("Dark2", len(np.unique(labels)))
     update_clear(ax8)
@@ -544,22 +544,34 @@ def plot_ransac(data_array, event_info, vertex=None, endpoint=None):
     colorbar4 = add_rectangles(ax8, data_array[:, DataArray.X.value:DataArray.Z.value + 1], labels, cmap, proj = 'xy', colorbarFlag=True, discrete=True)
     colorbar5 = add_rectangles(ax9, data_array[:, DataArray.X.value:DataArray.Z.value + 1], labels, cmap, proj = 'yz', colorbarFlag=True, discrete=True)
     colorbar6 = add_rectangles(ax10, data_array[:, DataArray.X.value:DataArray.Z.value + 1], labels, cmap, proj = 'xz', colorbarFlag=True, discrete=True)
-     # Place the number of data points in the top right corner
+    # Place the number of data points in the top right corner
     ax8.plot([event_info.verX, event_info.verX + line_length * event_info.dirX],[event_info.verY, event_info.verY + line_length * event_info.dirY],
                 color='blue', alpha=transparency)
     ax8.scatter(event_info.verX, event_info.verY, color='red', edgecolor='black', s=50, zorder=3)  # Circle for vertex
-    ax8.set_xlim(vertex[0]-RunParameters.zoom_in_length.value, endpoint[0]+RunParameters.zoom_in_length.value)
-    ax8.set_ylim(vertex[1]-RunParameters.zoom_in_length.value, endpoint[1]+RunParameters.zoom_in_length.value)
-    ax9.plot([event_info.verY, event_info.verY + line_length * event_info.dirY],[event_info.verZ, event_info.verZ + line_length * event_info.dirZ],
+    ax8.set_xlim(vertex[0]-RunParameters.zoom_in_length.value, end_point_geom[0]+RunParameters.zoom_in_length.value)
+    if event_info.dirY >=0:
+        ax8.set_ylim(vertex[1]-RunParameters.zoom_in_length.value, end_point_geom[1]+RunParameters.zoom_in_length.value)
+    if event_info.dirY <0:
+        ax8.set_ylim(end_point_geom[1]-RunParameters.zoom_in_length.value, vertex[1]+RunParameters.zoom_in_length.value)
+    ax9.plot([event_info.verY, event_info.verY + line_length * event_info.dirY],[event_info.verZ, event_info.verZ - line_length * event_info.dirZ],
                  color='blue', alpha=transparency)
     ax9.scatter(event_info.verY, event_info.verZ, color='red', edgecolor='black', s=50, zorder=3)  # Circle for vertex
-    ax9.set_xlim(vertex[1]-RunParameters.zoom_in_length.value, endpoint[1]+RunParameters.zoom_in_length.value)
-    ax9.set_ylim(vertex[2]-RunParameters.zoom_in_length.value, endpoint[2]+RunParameters.zoom_in_length.value)
-    ax10.plot([event_info.verX, event_info.verX + line_length * event_info.dirX],[event_info.verZ, event_info.verZ + line_length * event_info.dirZ],
+    if event_info.dirY >=0:
+        ax9.set_xlim(vertex[1]-RunParameters.zoom_in_length.value, end_point_geom[1]+RunParameters.zoom_in_length.value)
+    if event_info.dirY <0:
+        ax9.set_xlim(end_point_geom[1]-RunParameters.zoom_in_length.value, vertex[1]+RunParameters.zoom_in_length.value)
+    if event_info.dirZ >=0:
+        ax9.set_ylim(end_point_geom[2]-RunParameters.zoom_in_length.value, vertex[2]+RunParameters.zoom_in_length.value)
+    if event_info.dirZ <0:
+        ax9.set_ylim(vertex[2]-RunParameters.zoom_in_length.value, end_point_geom[2]+RunParameters.zoom_in_length.value)
+    ax10.plot([event_info.verX, event_info.verX + line_length * event_info.dirX],[event_info.verZ, event_info.verZ - line_length * event_info.dirZ],
                  color='blue', alpha=transparency)
     ax10.scatter(event_info.verX, event_info.verZ, color='red', edgecolor='black', s=50, zorder=3)  # Circle for vertex
-    ax10.set_xlim(vertex[0]-RunParameters.zoom_in_length.value, endpoint[0]+RunParameters.zoom_in_length.value)
-    ax10.set_ylim(vertex[2]-RunParameters.zoom_in_length.value, endpoint[2]+RunParameters.zoom_in_length.value)
+    ax10.set_xlim(vertex[0]-RunParameters.zoom_in_length.value, end_point_geom[0]+RunParameters.zoom_in_length.value)
+    if event_info.dirZ >=0:
+        ax10.set_ylim(end_point_geom[2]-RunParameters.zoom_in_length.value, vertex[2]+RunParameters.zoom_in_length.value)
+    if event_info.dirZ <0:
+        ax10.set_ylim(vertex[2]-RunParameters.zoom_in_length.value, end_point_geom[2]+RunParameters.zoom_in_length.value)
     plt.draw()
     return [colorbar4, colorbar5, colorbar6]
 
@@ -998,7 +1010,7 @@ def fit_gmm_with_bic(data, max_components=10):
     return best_labels, best_n_components, responsibilities
 
 # Function to plot the GMM assigned clusters
-def plot_gmm(data_array, event_info, color = 'blue', size=50, vertex=None, endpoint=None):
+def plot_gmm(data_array, event_info, color = 'blue', size=50, vertex=None, endpoint=None, end_point_geom=None):
     labels = data_array[:, DataArray.merge_cdist.value]
     cmap = plt.cm.get_cmap("Dark2", len(np.unique(labels)))
     update_clear(ax11)
@@ -1013,17 +1025,28 @@ def plot_gmm(data_array, event_info, color = 'blue', size=50, vertex=None, endpo
                 color=color, alpha=transparency)
     ax11.scatter(event_info.verX, event_info.verY, color=color, edgecolor='black', s=size, zorder=3)  # Circle for vertex
     ax11.set_xlim(vertex[0]-RunParameters.zoom_in_length.value, endpoint[0]+RunParameters.zoom_in_length.value)
-    ax11.set_ylim(vertex[1]-RunParameters.zoom_in_length.value, endpoint[1]+RunParameters.zoom_in_length.value)
-    ax12.plot([event_info.verY, event_info.verY + line_length * event_info.dirY],[event_info.verZ, event_info.verZ + line_length * event_info.dirZ],
+    if event_info.dirY >=0:
+        ax11.set_ylim(vertex[1]-RunParameters.zoom_in_length.value, end_point_geom[1]+RunParameters.zoom_in_length.value)
+    if event_info.dirY <0:
+        ax11.set_ylim(end_point_geom[1]-RunParameters.zoom_in_length.value, vertex[1]+RunParameters.zoom_in_length.value)
+    ax12.plot([event_info.verY, event_info.verY + line_length * event_info.dirY],[event_info.verZ, event_info.verZ - line_length * event_info.dirZ],
                  color=color, alpha=transparency)
     ax12.scatter(event_info.verY, event_info.verZ, color=color, edgecolor='black', s=size, zorder=3)  # Circle for vertex
-    ax12.set_xlim(vertex[1]-RunParameters.zoom_in_length.value, endpoint[1]+RunParameters.zoom_in_length.value)
-    ax12.set_ylim(vertex[2]-RunParameters.zoom_in_length.value, endpoint[2]+RunParameters.zoom_in_length.value)
-    ax13.plot([event_info.verX, event_info.verX + line_length * event_info.dirX],[event_info.verZ, event_info.verZ + line_length * event_info.dirZ],
+    if event_info.dirY >=0:
+        ax12.set_xlim(vertex[1]-RunParameters.zoom_in_length.value, end_point_geom[1]+RunParameters.zoom_in_length.value)
+    if event_info.dirY <0:
+        ax12.set_xlim(end_point_geom[1]-RunParameters.zoom_in_length.value, vertex[1]+RunParameters.zoom_in_length.value)
+    if event_info.dirZ >=0:
+        ax12.set_ylim(end_point_geom[2]-RunParameters.zoom_in_length.value, vertex[2]+RunParameters.zoom_in_length.value)
+    if event_info.dirZ <0:
+        ax12.set_ylim(vertex[2]-RunParameters.zoom_in_length.value, end_point_geom[2]+RunParameters.zoom_in_length.value)
+    ax13.plot([event_info.verX, event_info.verX + line_length * event_info.dirX],[event_info.verZ, event_info.verZ - line_length * event_info.dirZ],
                  color=color, alpha=transparency)
     ax13.scatter(event_info.verX, event_info.verZ, color=color, edgecolor='black', s=size, zorder=3)  # Circle for vertex
-    ax13.set_xlim(vertex[0]-RunParameters.zoom_in_length.value, endpoint[0]+RunParameters.zoom_in_length.value)
-    ax13.set_ylim(vertex[2]-RunParameters.zoom_in_length.value, endpoint[2]+RunParameters.zoom_in_length.value)
+    if event_info.dirZ >=0:
+        ax13.set_ylim(end_point_geom[2]-RunParameters.zoom_in_length.value, vertex[2]+RunParameters.zoom_in_length.value)
+    if event_info.dirZ <0:
+        ax13.set_ylim(vertex[2]-RunParameters.zoom_in_length.value, end_point_geom[2]+RunParameters.zoom_in_length.value)
     plt.draw()
     # print('GMM colorbar', [colorbar7, colorbar8, colorbar9])
     return [colorbar7, colorbar8, colorbar9]
@@ -1983,7 +2006,10 @@ for energy in excitation_energies:
                         else:
                             print("Track is rejected.")
                             arr_event.append([event_info.event_id, 0])
-                        end_point = vertex + direction * range_
+                        end_point_1 = vertex + direction * range_
+                        end_point_2 = vertex - direction * range_
+                        end_point_geom = end_point_1
+                        end_point_geom[2] = end_point_2[2]
                         # continue
 
                     # Get Input array and Visualize it
@@ -2018,7 +2044,12 @@ for energy in excitation_energies:
 
                     # Get Predicted Labels from RANSAC
                     # data_array = [0-x,1-y,2-z,3-q,4-track_ID, 5-true_labels_sim, 6-true_labels_hard, 7-ransac labels]
-                    ransac_labels, fitted_models = find_multiple_lines_ransac(data_array, max_lines=RansacParameters.MAX_LINES.value, residual_threshold=RansacParameters.RESIDUAL_THRESHOLD.value, n_iterations=RansacParameters.N_ITERATIONS.value)
+                    if RunParameters.use_iterative_ransac.value:
+                        print('USING ITERATIVE RANSAC')
+                        ransac_labels, fitted_models = find_iterative_lines_ransac(data_array, max_lines=RansacParameters.MAX_LINES.value, residual_threshold=RansacParameters.RESIDUAL_THRESHOLD.value, n_iterations=RansacParameters.N_ITERATIONS.value)
+                    else:
+                        ransac_labels, fitted_models = find_multiple_lines_ransac(data_array, max_lines=RansacParameters.MAX_LINES.value, residual_threshold=RansacParameters.RESIDUAL_THRESHOLD.value, n_iterations=RansacParameters.N_ITERATIONS.value)
+                        print('USING SEQUENTIAL RANSAC')
                     data_array = np.column_stack((data_array, ransac_labels))
                     ransac['components'] = len(np.unique(ransac_labels))
                     print('Number of unique ransac labels', np.unique(ransac_labels))
@@ -2067,7 +2098,7 @@ for energy in excitation_energies:
                             data_array[scattered_below_rfda, DataArray.ransac_labels.value] = ransac_filter_final_clusters_below
 
                     if plots:
-                        colorbars_ransac = plot_ransac(data_array, event_info, vertex=vertex, endpoint=end_point)
+                        colorbars_ransac = plot_ransac(data_array, event_info, vertex=vertex, endpoint=end_point_geom, end_point_geom=end_point_geom)
 
                     print('Number of unique ransac reg labels', np.unique(data_array[:, DataArray.ransac_labels.value]))
                     angles_ransac, intersections_ransac, start_point_ransac, end_point_ransac, phi_angle_ransac, ranges_initial, ranges_final = kinematics_ransac(data_array, fitted_models, False, orl = old_ransac_labels)
@@ -2163,7 +2194,7 @@ for energy in excitation_energies:
                     gmm['components'] = n_comp
 
                     if plots:
-                        colorbars_gmm = plot_gmm(data_array, event_info, vertex=vertex, endpoint=end_point)
+                        colorbars_gmm = plot_gmm(data_array, event_info, vertex=vertex, endpoint=end_point_geom, end_point_geom=end_point_geom)
 
                     angles_gmm, intersections_gmm, angles_minimize_gmm, start_point_gmm, end_point_gmm, closest_resp, closest_angle, phi_angle_gmm, data_with_filters, gmm_ranges_initial, gmm_ranges_final = kinematics_gmm(data_array, responsibilities, event_info)
 
