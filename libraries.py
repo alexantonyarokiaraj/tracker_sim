@@ -12,7 +12,7 @@ class DataArray(Enum):
     gmm_labels = 8
     dbscan_labels = 9
     merge_p_val =  10
-    merge_cdist = 11
+    merge_cdist = 11 
     scattered_track = 12
     track_inside_volume = 13
     vertex_inside_volume = 14
@@ -38,10 +38,10 @@ class RunParameters(Enum):
     optimize_cdist = False
     optimize_pij = False
     optimize_multiplicity = False
-    save_root_file = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/recursive_ransac_5/"
-    save_root_fig = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/images/compare/1cm/"
+    save_root_file = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/recursive_ransac_7/"
+    save_root_fig = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/images/compare/3cm/"
     tag = "iransac"
-    exc_file_name = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/recursive_ransac_5/"
+    exc_file_name = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/recursive_ransac_7/"
     range_lookup_table = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/LookupTable_e780_58Ni_68Ni_Alex.xlsx"
     range_energy_conversion_sheet = "range_energy_he_he_cf4_mixed"
     use_cij_ransac = True
@@ -58,12 +58,12 @@ class VolumeBoundaries(Enum):
 
 class SCAN(Enum):
     N_PROC = 1
-    NN_NEIGHBOR = 2
+    NN_NEIGHBOR = 5
     NN_RADIUS = 20.0
     DB_MIN_SAMPLES = 4
     SENSITIVITY = 3
-    EPS_THRESHOLD = 5
-    EPS_MODE = 10
+    EPS_THRESHOLD = 4.0
+    EPS_MODE = 4.0
 
 class Optimize(Enum):
     ALPHA = 28.5/100 #percentage
@@ -118,5 +118,5 @@ class ConversionFactors(Enum):
 
 class RansacParameters(Enum):
     MAX_LINES = 10
-    RESIDUAL_THRESHOLD = 5.0
+    RESIDUAL_THRESHOLD = 7.0
     N_ITERATIONS = 1000

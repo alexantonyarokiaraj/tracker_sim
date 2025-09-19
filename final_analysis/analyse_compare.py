@@ -6,7 +6,8 @@ import os
 # Settings
 excitation_energies = [10]
 cm_angles = [1, 2, 3, 4, 5]
-base_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/gamma_2_run/"
+suppression_factor = range(32)
+base_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/recursive_ransac_7/"
 volume_min, volume_max = 10, 246
 beam_zone_min, beam_zone_max = 120, 134
 hist_range = (-20, 20)
@@ -74,81 +75,88 @@ def process_file(filepath, branch_angle, branch_phi, branch_start, branch_end, b
     file.Close()
     return diff_angles, event_ids
 
+list_values = []
 # Main loop
 for energy in excitation_energies:
     for cm in cm_angles:
+        for suppress in suppression_factor:
 
-        # filename = f"{energy}mev_{cm}cm.npy"
-        # status_array = np.load(filename)
+            # filename = f"{energy}mev_{cm}cm.npy"
+            # status_array = np.load(filename)
 
-        # event_status = {int(row[0]): int(row[1]) for row in status_array}
+            # event_status = {int(row[0]): int(row[1]) for row in status_array}
 
-        ransac_diffs = []
-        gmm_diffs = []
+            ransac_diffs = []
+            gmm_diffs = []
 
-        pattern = os.path.join(base_path, f"gamma_sim_5000_{energy}mev_{cm}cm_*_*.root")
-        file_list = glob.glob(pattern)
+            pattern = os.path.join(base_path, f"iransac_sim_5000_{energy}mev_{cm}cm_*_*_{suppress}.root")
+            file_list = glob.glob(pattern)
 
-        for filepath in file_list:
-            ransac_diff, ransac_ids = process_file(filepath, "ransac_angles", "ransac_phi_angles",
-                                                "ransac_start", "ransac_end", "ransac_inter", "Elab")
-            gmm_diff, gmm_ids = process_file(filepath, "gmm_angles", "gmm_phi_angles",
-                                            "gmm_start", "gmm_end", "gmm_inter", "Elab")
+            for filepath in file_list:
+                ransac_diff, ransac_ids = process_file(filepath, "ransac_angles", "ransac_phi_angles",
+                                                    "ransac_start", "ransac_end", "ransac_inter", "Elab")
+                gmm_diff, gmm_ids = process_file(filepath, "gmm_angles", "gmm_phi_angles",
+                                                "gmm_start", "gmm_end", "gmm_inter", "Elab")
 
-            ransac_diffs += ransac_diff
-            gmm_diffs += gmm_diff
+                ransac_diffs += ransac_diff
+                gmm_diffs += gmm_diff
 
-            # Identify GMM-only events
-            gmm_only_ids = set(gmm_ids) - set(ransac_ids)
-            for eventid in gmm_only_ids:
-                print(f"EventID {eventid} is present in GMM but not in RANSAC for file: {filepath}")
+                # Identify GMM-only events
+                gmm_only_ids = set(gmm_ids) - set(ransac_ids)
+                for eventid in gmm_only_ids:
+                    print(f"EventID {eventid} is present in GMM but not in RANSAC for file: {filepath}")
 
-        # Create canvas and histograms
-        canvas = ROOT.TCanvas(f"c_{energy}_{cm}", f"Energy {energy} MeV, CM {cm}°", 1200, 600)
-        canvas.Divide(2, 1)
+            # Create canvas and histograms
+            canvas = ROOT.TCanvas(f"c_{energy}_{cm}", f"Energy {energy} MeV, CM {cm}°", 1200, 600)
+            canvas.Divide(2, 1)
 
-        h_ransac = ROOT.TH1F(f"ransac_hist_{energy}_{cm}", f"RANSAC Δθ - Energy {energy} MeV, CM {cm}°;Δθ (deg);Entries", n_bins, hist_range[0], hist_range[1])
-        h_gmm = ROOT.TH1F(f"gmm_hist_{energy}_{cm}", f"GMM Δθ - Energy {energy} MeV, CM {cm}°;Δθ (deg);Entries", n_bins, hist_range[0], hist_range[1])
+            h_ransac = ROOT.TH1F(f"ransac_hist_{energy}_{cm}", f"RANSAC Δθ - Energy {energy} MeV, CM {cm}°;Δθ (deg);Entries", n_bins, hist_range[0], hist_range[1])
+            h_gmm = ROOT.TH1F(f"gmm_hist_{energy}_{cm}", f"GMM Δθ - Energy {energy} MeV, CM {cm}°;Δθ (deg);Entries", n_bins, hist_range[0], hist_range[1])
 
-        for diff in ransac_diffs:
-            h_ransac.Fill(diff)
-        for diff in gmm_diffs:
-            h_gmm.Fill(diff)
+            for diff in ransac_diffs:
+                h_ransac.Fill(diff)
+            for diff in gmm_diffs:
+                h_gmm.Fill(diff)
 
-        def annotate_hist(hist):
-            entries = hist.GetEntries()
-            mean = hist.GetMean()
-            stddev = hist.GetStdDev()
-            hist.SetStats(0)
-            label = ROOT.TLatex()
-            label.SetNDC()
-            label.SetTextSize(0.03)
-            label.DrawLatex(0.15, 0.85, f"Entries: {int(entries)}")
-            label.DrawLatex(0.15, 0.80, f"Mean: {mean:.2f}")
-            label.DrawLatex(0.15, 0.75, f"Std Dev: {stddev:.2f}")
+            def annotate_hist(hist):
+                entries = hist.GetEntries()
+                mean = hist.GetMean()
+                stddev = hist.GetStdDev()
+                hist.SetStats(0)
+                label = ROOT.TLatex()
+                label.SetNDC()
+                label.SetTextSize(0.03)
+                label.DrawLatex(0.15, 0.85, f"Entries: {int(entries)}")
+                label.DrawLatex(0.15, 0.80, f"Mean: {mean:.2f}")
+                label.DrawLatex(0.15, 0.75, f"Std Dev: {stddev:.2f}")
 
-        canvas.cd(1)
-        h_ransac.SetLineColor(ROOT.kBlue)
-        h_ransac.Draw()
-        annotate_hist(h_ransac)
+            list_values.append([energy, cm, suppress, h_ransac.GetEntries(), h_ransac.GetMean(), h_ransac.GetStdDev(), h_gmm.GetEntries(), h_gmm.GetMean(), h_gmm.GetStdDev()])
 
-        # Add label (a)
-        label_a = ROOT.TLatex()
-        label_a.SetNDC()
-        label_a.SetTextSize(0.04)
-        label_a.DrawLatex(0.1, 0.92, "(a)")
+            canvas.cd(1)
+            h_ransac.SetLineColor(ROOT.kBlue)
+            h_ransac.Draw()
+            annotate_hist(h_ransac)
 
-        canvas.cd(2)
-        h_gmm.SetLineColor(ROOT.kRed)
-        h_gmm.Draw()
-        annotate_hist(h_gmm)
+            # Add label (a)
+            label_a = ROOT.TLatex()
+            label_a.SetNDC()
+            label_a.SetTextSize(0.04)
+            label_a.DrawLatex(0.1, 0.92, "(a)")
 
-        # Add label (b)
-        label_b = ROOT.TLatex()
-        label_b.SetNDC()
-        label_b.SetTextSize(0.04)
-        label_b.DrawLatex(0.1, 0.92, "(b)")
+            canvas.cd(2)
+            h_gmm.SetLineColor(ROOT.kRed)
+            h_gmm.Draw()
+            annotate_hist(h_gmm)
 
-        canvas.Update()
-        canvas.SaveAs(f"histogram_{energy}MeV_{cm}cm.png")
-        canvas.WaitPrimitive()
+            # Add label (b)
+            label_b = ROOT.TLatex()
+            label_b.SetNDC()
+            label_b.SetTextSize(0.04)
+            label_b.DrawLatex(0.1, 0.92, "(b)")
+
+
+            canvas.Update()
+            canvas.SaveAs(f"histogram_{energy}MeV_{cm}cm_{suppress}su_7.png")
+            # canvas.WaitPrimitive()
+
+np.save('list.npy',np.array(list_values))

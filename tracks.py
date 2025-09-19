@@ -19,7 +19,7 @@ from matplotlib.colorbar import Colorbar
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from collections import namedtuple
 import math
-from ransac import find_multiple_lines_ransac, find_iterative_lines_ransac
+from ransac import find_multiple_lines_ransac, find_iterative_lines_ransac, iterative_ransac_with_suppression
 from sklearn.linear_model import LinearRegression
 from sklearn.mixture import GaussianMixture
 from sklearn.decomposition import PCA
@@ -63,6 +63,10 @@ cm_angles=[split_strings[1]]
 path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/DATA/simulation/5000/"
 event_start = int(split_strings[2])
 event_end = int(split_strings[3])
+suppression_factor_index = int(split_strings[4])
+suppression_values = np.linspace(0, 1, 32)
+suppression_factor = suppression_values[suppression_factor_index]
+
 
 plots = RunParameters.plots.value
 sim = RunParameters.sim.value
@@ -779,6 +783,7 @@ def kinematics_ransac(data_initial, fitted_models, useLineModelND, orl = None):
     for label in ransac_labels:
         # Get the points corresponding to the current label
         cluster_data = data[data[:, DataArray.ransac_labels.value] == label]
+        # print('Entering label', label)
 
         # Check if the cluster size is greater than 10
         if cluster_data.shape[0] <= 10:
@@ -1011,7 +1016,8 @@ def fit_gmm_with_bic(data, max_components=10):
 
 # Function to plot the GMM assigned clusters
 def plot_gmm(data_array, event_info, color = 'blue', size=50, vertex=None, endpoint=None, end_point_geom=None):
-    labels = data_array[:, DataArray.merge_cdist.value]
+    print("Plotting GMM labels merged cdist")
+    labels = data_array[:, DataArray.gmm_labels.value]
     cmap = plt.cm.get_cmap("Dark2", len(np.unique(labels)))
     update_clear(ax11)
     update_clear(ax12)
@@ -1692,11 +1698,11 @@ def dbcluster(data_array, N_PROC, nn_neighbor, nn_radius, db_min_samples, sensit
         extractedData = data_array[:, DataArray.X.value:DataArray.Z.value + 1]
 
         # Nearest neighbors setup
-        neigh = NearestNeighbors(n_neighbors=nn_neighbor, radius=nn_radius)
+        neigh = NearestNeighbors(n_neighbors=nn_neighbor)
         nbrs = neigh.fit(extractedData)
         distances, indices = nbrs.kneighbors(extractedData)
         distances = np.sort(distances, axis=0)
-        dist_ = distances[:, 1]
+        dist_ = distances[:, nn_neighbor-1]
 
         # KneeLocator to find the optimal epsilon
         kneedle = KneeLocator(
@@ -1712,6 +1718,7 @@ def dbcluster(data_array, N_PROC, nn_neighbor, nn_radius, db_min_samples, sensit
 
         epsilon_ = round(dist_[int(kneedle.knee)], 2)
         if epsilon_ < eps_threshold_:
+            print('EPSILON BELOW THRESHOLD, USING DEFAULT', eps_mode_, epsilon_)
             epsilon_ = eps_mode_
 
         # DBSCAN clustering
@@ -1945,7 +1952,7 @@ for energy in excitation_energies:
 
         if save_to_root:
             path_output = RunParameters.save_root_file.value
-            root_file = root.TFile(path_output+RunParameters.tag.value+"_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".root", "UPDATE")
+            root_file = root.TFile(path_output+RunParameters.tag.value+"_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+"_"+str(suppression_factor_index)+".root", "UPDATE")
             print(root_file)
             result = create_tree_and_branches("events")
 
@@ -2046,15 +2053,13 @@ for energy in excitation_energies:
                     # data_array = [0-x,1-y,2-z,3-q,4-track_ID, 5-true_labels_sim, 6-true_labels_hard, 7-ransac labels]
                     if RunParameters.use_iterative_ransac.value:
                         print('USING ITERATIVE RANSAC')
-                        ransac_labels, fitted_models = find_iterative_lines_ransac(data_array, max_lines=RansacParameters.MAX_LINES.value, residual_threshold=RansacParameters.RESIDUAL_THRESHOLD.value, n_iterations=RansacParameters.N_ITERATIONS.value)
+                        ransac_labels, fitted_models = iterative_ransac_with_suppression(data_array, max_lines=RansacParameters.MAX_LINES.value, residual_threshold=RansacParameters.RESIDUAL_THRESHOLD.value, n_iterations=RansacParameters.N_ITERATIONS.value, min_samples=10, suppression_factor=suppression_factor)
                     else:
                         ransac_labels, fitted_models = find_multiple_lines_ransac(data_array, max_lines=RansacParameters.MAX_LINES.value, residual_threshold=RansacParameters.RESIDUAL_THRESHOLD.value, n_iterations=RansacParameters.N_ITERATIONS.value)
                         print('USING SEQUENTIAL RANSAC')
                     data_array = np.column_stack((data_array, ransac_labels))
                     ransac['components'] = len(np.unique(ransac_labels))
                     print('Number of unique ransac labels', np.unique(ransac_labels))
-
-
 
                     #Get Prediced Labels from GMM
                     # data_array = [0-x,1-y,2-z,3-q,4-track_ID, 5-true_labels_sim, 6-true_labels_hard, 7-ransac labels, 8-gmm labels, 9-dbscan labels, 10 - merge labels]
@@ -2198,7 +2203,7 @@ for energy in excitation_energies:
 
                     angles_gmm, intersections_gmm, angles_minimize_gmm, start_point_gmm, end_point_gmm, closest_resp, closest_angle, phi_angle_gmm, data_with_filters, gmm_ranges_initial, gmm_ranges_final = kinematics_gmm(data_array, responsibilities, event_info)
 
-                    print('GMM angles', angles_gmm, gmm_ranges_final, event_info.Elab, phi_angle_gmm)
+                    print('GMM angles', angles_gmm)
                     print(start_point_gmm, end_point_gmm)
                     gmm['angles'] = angles_gmm
                     gmm['intersections'] = intersections_gmm
@@ -2332,7 +2337,7 @@ for energy in excitation_energies:
             result["tree"].Write()
             root_file.Close()
             exceptions_output_path = RunParameters.exc_file_name.value
-            exceptions_output_file = exceptions_output_path+RunParameters.tag.value+"_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".npy"
+            exceptions_output_file = exceptions_output_path+RunParameters.tag.value+"_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+"_"+str(suppression_factor_index)+".npy"
             print(exceptions_output_file)
             np.save(exceptions_output_file, np.array(exception_events))
         # if RunParameters.calculate_geometric_efficiency.value:

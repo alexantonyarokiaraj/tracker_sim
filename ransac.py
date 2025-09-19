@@ -73,8 +73,8 @@ def find_multiple_lines_ransac(data_array, max_lines=10, residual_threshold=5.0,
             min_samples = int(min(min_sam, points.shape[0]))
             # print(min_samples)
             model_class = LineModelND  # Reference the model class
-            np.random.seed(42)
-            random.seed(42)
+            # np.random.seed(42)
+            # random.seed(42)
             model, inlier_mask = ransac(points, model_class, min_samples=min_samples,
                                         residual_threshold=residual_threshold, max_trials=n_iterations)
 
@@ -105,3 +105,52 @@ def find_multiple_lines_ransac(data_array, max_lines=10, residual_threshold=5.0,
 
     return labels, fitted_models
 
+def iterative_ransac_with_suppression(
+    data_array,
+    max_lines=10,
+    residual_threshold=5.0,
+    n_iterations=5000,
+    min_samples=10,
+    suppression_factor=0.1
+):
+    n_points = data_array.shape[0]
+    labels = np.full(n_points, 20)  # Default label for unassigned points
+    current_label = 1
+    fitted_models = {}
+    print('Using suppression factor', suppression_factor, residual_threshold)
+    # Keep all points, but suppress repeated inliers via weights
+    sample_weights = np.ones(n_points)
+
+    for _ in range(max_lines):
+        # Weighted sampling: pick a subset to fit RANSAC
+        # We'll pre-sample a small set of candidate points based on weights
+        probabilities = sample_weights / np.sum(sample_weights)
+        candidate_indices = np.random.choice(n_points, size=n_points, replace=True, p=probabilities)
+        candidate_points = data_array[candidate_indices, :3]
+
+        # Run RANSAC on weighted sample
+        model, inlier_mask = ransac(
+            candidate_points,
+            LineModelND,
+            min_samples=min_samples,
+            residual_threshold=residual_threshold,
+            max_trials=n_iterations
+        )
+
+        # Predict residuals on all points to get global inliers
+        residuals = model.residuals(data_array[:, :3])
+        global_inlier_mask = residuals < residual_threshold
+
+        if np.sum(global_inlier_mask) < min_samples:
+            break  # No good model found
+
+        # Assign label to these inliers
+        labels[global_inlier_mask] = current_label
+        fitted_models[current_label] = model
+        current_label += 1
+
+        # Suppress these inliers in future sampling
+        sample_weights[global_inlier_mask] *= suppression_factor
+        sample_weights += 1e-8  # Prevent zero probability
+
+    return labels, fitted_models
