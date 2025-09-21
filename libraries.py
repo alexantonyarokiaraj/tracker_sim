@@ -23,20 +23,20 @@ class DataArray(Enum):
 
 class RunParameters(Enum):
     sim = True
-    plots = True
+    plots = False
     debug=False
     final_plots_flag = False
     save_final_data=False
     with_missing_pads = True
-    batch_mode = False
+    batch_mode = True
     save_to_root = False
     save_python_figures = False
     zoom_in_length = 40
     optimize_alpha = False
-    optimize_beta = False
-    optimize_gamma = False
+    optimize_beta = True
+    optimize_gamma =  True
     optimize_cdist = False
-    optimize_pij = False
+    optimize_pij = True
     optimize_multiplicity = False
     save_root_file = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/recursive_ransac_7/"
     save_root_fig = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/images/compare/3cm/"
@@ -118,5 +118,5 @@ class ConversionFactors(Enum):
 
 class RansacParameters(Enum):
     MAX_LINES = 10
-    RESIDUAL_THRESHOLD = 7.0
-    N_ITERATIONS = 1000
+    RESIDUAL_THRESHOLD = 5.0
+    N_ITERATIONS = 5000

@@ -2194,7 +2194,7 @@ for energy in excitation_energies:
                         print('Multiplicity Distances')
                         print(cdist_dict)
 
-                    np.save('/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/text_files/sim_10mev_3cm_event335.npy',data_array)
+                    # np.save('/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/text_files/sim_10mev_3cm_event335.npy',data_array)
 
                     gmm['components'] = n_comp
 
