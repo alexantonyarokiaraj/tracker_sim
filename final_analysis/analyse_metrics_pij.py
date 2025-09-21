@@ -16,8 +16,8 @@ cm_values = [1, 2, 3, 4, 5]
 # Loop through excitation energy and CM combinations
 for ex in excitation_energies:
     for cm in cm_values:
-        file_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/alpha/"
-        file_pattern = f"alpha_sim_5000_{ex}mev_{cm}cm_*.root"
+        file_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/root_files/testing/"
+        file_pattern = f"pij_sim_5000_{ex}mev_{cm}cm_*.root"
         file_list = glob.glob(file_path + file_pattern)
         print('file_pattern', file_pattern)
         chain = ROOT.TChain("events")

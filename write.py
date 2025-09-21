@@ -459,7 +459,7 @@ def fill_event_data_to_tree(result, event_data):
     gmm_comp.push_back(event_data.gmm["components"])
     gmm_beam_comp.push_back(event_data.gmm["beam_components"])
     gmm_track_comp.push_back(event_data.gmm["track_components"])
-    gmm_ari.push_back(event_data.gmm["ari"])
+    gmm_ari.push_back(event_data.gmm["ari"])  
     gmm_filtered_ari.push_back(event_data.gmm["filtered_ari"])
     gmm_ari_pval.push_back(event_data.gmm["ari_pval"])
     gmm_filtered_ari_pval.push_back(event_data.gmm["filtered_ari_pval"])
