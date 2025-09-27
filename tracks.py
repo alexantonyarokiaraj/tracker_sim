@@ -539,8 +539,9 @@ def generate_true_labels(data_array, event_info):
         plt.draw()
     return data_array
 
-def plot_ransac(data_array, event_info, vertex=None, endpoint=None, end_point_geom=None):
+def plot_ransac(data_array, event_info, vertex=None, endpoint=None, end_point_geom=None, orl=None):
     labels = data_array[:, DataArray.ransac_labels.value]
+    # labels = orl
     cmap = plt.cm.get_cmap("Dark2", len(np.unique(labels)))
     update_clear(ax8)
     update_clear(ax9)
@@ -1794,9 +1795,18 @@ def hierarchical_clustering_with_responsibilities(data_array, max_components=10)
     return final_labels, current_label_offset, final_responsibilities, dbscan_labels
 
 # Function to calculate the metrics for low energy tracks
-def calculate_metric_low_energy(data):
+def calculate_metric_low_energy(data_incoming, gmm=True, orl=None):
 
-    unique_gmm_labels = len(np.unique(data[:, DataArray.merge_p_val.value]))
+    if gmm:
+        data = data_incoming
+        label_value = DataArray.merge_p_val.value
+    else:
+        data_new = data_incoming[:, :DataArray.merge_cdist.value + 1]
+        data_in = add_filters(data_new, model= int(DataArray.ransac_labels.value))
+        data = np.column_stack((data_in, orl))
+        label_value = DataArray.old_ransac_labels.value
+
+    unique_gmm_labels = len(np.unique(data[:, label_value]))
 
     # Filter tracks based on flags
     scattered_tracks = data[:, DataArray.scattered_track.value] == 1  # Column 10: Scattered track
@@ -1815,10 +1825,10 @@ def calculate_metric_low_energy(data):
     tracks_below = {}
 
     # Iterate over unique track labels
-    unique_labels = np.unique(filtered_data[:, DataArray.merge_p_val.value])  # Column 9: Labels
+    unique_labels = np.unique(filtered_data[:, label_value])  # Column 9: Labels
 
     for label in unique_labels:
-        label_data = filtered_data[filtered_data[:, DataArray.merge_p_val.value] == label]
+        label_data = filtered_data[filtered_data[:, label_value] == label]
 
         # Classify the tracks based on column 13 (above or below)
         if np.all(label_data[:, DataArray.side_of_track.value] == 1):  # Track is above (Column 13 == 1)
@@ -2077,7 +2087,7 @@ for energy in excitation_energies:
                     old_ransac_labels = np.array([])
 
                     if RunParameters.use_cij_ransac.value:
-                        old_ransac_labels = data_array[:, DataArray.ransac_labels.value]
+                        old_ransac_labels = data_array[:, DataArray.ransac_labels.value].copy()
                         ransac_filter_data_array = add_filters(data_array, model= int(DataArray.ransac_labels.value))
                         scattered_condition_rfda = ransac_filter_data_array[:, DataArray.scattered_track.value] == 1
                         scattered_above_mask_rfda = ransac_filter_data_array[:, DataArray.side_of_track.value] == 1
@@ -2103,7 +2113,7 @@ for energy in excitation_energies:
                             data_array[scattered_below_rfda, DataArray.ransac_labels.value] = ransac_filter_final_clusters_below
 
                     if plots:
-                        colorbars_ransac = plot_ransac(data_array, event_info, vertex=vertex, endpoint=end_point_geom, end_point_geom=end_point_geom)
+                        colorbars_ransac = plot_ransac(data_array, event_info, vertex=vertex, endpoint=end_point_geom, end_point_geom=end_point_geom, orl=old_ransac_labels)
 
                     print('Number of unique ransac reg labels', np.unique(data_array[:, DataArray.ransac_labels.value]))
                     angles_ransac, intersections_ransac, start_point_ransac, end_point_ransac, phi_angle_ransac, ranges_initial, ranges_final = kinematics_ransac(data_array, fitted_models, False, orl = old_ransac_labels)
@@ -2146,7 +2156,7 @@ for energy in excitation_energies:
                     scattered_below = scattered_condition & scattered_below_mask
 
                     if RunParameters.optimize_cdist.value:
-                        metric_low_energy = calculate_metric_low_energy(data_array)
+                        metric_low_energy = calculate_metric_low_energy(data_array, gmm=False, orl=old_ransac_labels)
                         print('Printing metric low energy')
                         print(metric_low_energy)
                     else:
@@ -2283,11 +2293,27 @@ for energy in excitation_energies:
                     ransac_noise_mask = data_array[:, DataArray.ransac_labels.value] != 20  # Exclude points with label 20
                     gmm_noise_mask = data_array[:, DataArray.gmm_labels.value] != -1  # Exclude points with -1
 
+
+                    a = data_array[:, DataArray.ransac_labels.value]
+                    b = old_ransac_labels
+                    # Check if arrays are completely equal
+                    print(np.array_equal(a, b))  # False
+
+                    # Common elements
+                    print("Common:", np.intersect1d(a, b))  # [4 5]
+
+                    # Elements in a but not in b
+                    print("In a but not b:", np.setdiff1d(a, b))  # [1 2 3]
+
+                    # Elements in b but not in a
+                    print("In b but not a:", np.setdiff1d(b, a))  # [6 7 8]
                     
+                    print("Same clustering?", adjusted_rand_score(a, b))
 
                     ransac['ari'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels_sim.value], data_array[:, DataArray.ransac_labels.value]), 2)                    
                     ransac['filtered_ari'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels_sim.value], old_ransac_labels), 2)                    
                     # ransac['filtered_ari'] = round(adjusted_rand_score(data_array[ransac_noise_mask, DataArray.true_labels_sim.value], data_array[ransac_noise_mask, DataArray.ransac_labels.value]), 2)
+                    print(ransac['ari'], ransac['filtered_ari'])
                     ransac['label_info'] = ransac_reduced_k
                     gmm['ari'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels_sim.value], data_array[:, DataArray.gmm_labels.value]), 2)
                     gmm['filtered_ari'] = round(adjusted_rand_score(data_array[gmm_noise_mask, DataArray.true_labels_sim.value], data_array[gmm_noise_mask, DataArray.gmm_labels.value]), 2)
