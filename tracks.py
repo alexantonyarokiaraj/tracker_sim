@@ -396,7 +396,7 @@ def get_beam_center(entries):
             z_proj.Fit(fit_gaus, "RQN0", "NOM", max_location - 4 * sig_beam_center,
                     max_location + 4 * sig_beam_center)
             beam_c = fit_gaus.GetParameter(1) - beam_entrance_time
-            print('Center of Z->', beam_c)
+            # print('Center of Z->', beam_c)
         else:
             beam_c = beam_center_time - beam_entrance_time
     except:
@@ -541,7 +541,7 @@ def generate_true_labels(data_array, event_info):
 
 def plot_ransac(data_array, event_info, vertex=None, endpoint=None, end_point_geom=None, orl=None):
     labels = data_array[:, DataArray.ransac_labels.value]
-    # labels = orl
+    labels = orl
     cmap = plt.cm.get_cmap("Dark2", len(np.unique(labels)))
     update_clear(ax8)
     update_clear(ax9)
@@ -783,8 +783,7 @@ def kinematics_ransac(data_initial, fitted_models, useLineModelND, orl = None):
     ransac_labels = np.unique(data[:, DataArray.ransac_labels.value])
     for label in ransac_labels:
         # Get the points corresponding to the current label
-        cluster_data = data[data[:, DataArray.ransac_labels.value] == label]
-        # print('Entering label', label)
+        cluster_data = data[data[:, DataArray.ransac_labels.value] == label]        
 
         # Check if the cluster size is greater than 10
         if cluster_data.shape[0] <= 10:
@@ -836,8 +835,7 @@ def kinematics_ransac(data_initial, fitted_models, useLineModelND, orl = None):
                     for segment in segments:
                         segment['d_beam'] = point_to_line_distance(segment['start'], beam_start, beam_dir)
 
-                    segments.sort(key=lambda s: s['d_beam'])
-
+                    segments.sort(key=lambda s: s['d_beam'])                    
                     total_len = sum(s['length'] for s in segments)
 
                     cutoff = Optimize.BETA_FRACTION.value * total_len
@@ -1016,9 +1014,8 @@ def fit_gmm_with_bic(data, max_components=10):
     return best_labels, best_n_components, responsibilities
 
 # Function to plot the GMM assigned clusters
-def plot_gmm(data_array, event_info, color = 'blue', size=50, vertex=None, endpoint=None, end_point_geom=None):
-    print("Plotting GMM labels merged cdist")
-    labels = data_array[:, DataArray.gmm_labels.value]
+def plot_gmm(data_array, event_info, color = 'blue', size=50, vertex=None, endpoint=None, end_point_geom=None):    
+    labels = data_array[:, DataArray.merge_p_val.value]
     cmap = plt.cm.get_cmap("Dark2", len(np.unique(labels)))
     update_clear(ax11)
     update_clear(ax12)
@@ -1182,7 +1179,7 @@ def kinematics_gmm(data_initial, responsibilities, event_info):
                     lab_angle_beta = angle_between(track_vector_beta, beam_vector_beta)
                     phi_angle_beta = calculate_phi_angle(track_vector_beta, beam_vector_beta)
                     intersection_point_beta = closest_point_on_line1(start_point_beta, track_vector_beta, np.array([0,128,128]), beam_vector_beta)
-                    print('BETA FIT', intersection_point_beta, end_point_beta)
+                    # print('BETA FIT', intersection_point_beta, end_point_beta)
                     # lab_angles_initial[label] = round(lab_angle_beta, 2)
                     # intersections_initial[label] = intersection_point_beta
                     # start_point_initial[label] = start_point_beta
@@ -1247,8 +1244,7 @@ def kinematics_gmm(data_initial, responsibilities, event_info):
                 intersection_point_full = closest_point_on_line1(start_point_full, track_vector_full, np.array([0,128,128]), beam_vector_full)
                 end_point_resp, start_point_resp, beam_vector_resp, dirVecTrackNorm_resp, track_mean_resp, closest_points_resp = get_directions(data_for_angle)
                 track_vector_resp = end_point_resp - start_point_resp
-                intersection_point_resp = closest_point_on_line1(start_point_resp, track_vector_resp, np.array([0,128,128]), beam_vector_resp)
-                print('GAMMA FIT', intersection_point_resp, end_point_resp)
+                intersection_point_resp = closest_point_on_line1(start_point_resp, track_vector_resp, np.array([0,128,128]), beam_vector_resp)                
                 # intersections_final[label] = intersection_point_resp
                 lab_angle_resp = angle_between(track_vector_resp, beam_vector_resp)
                 phi_angle_resp = calculate_phi_angle(track_vector_resp, beam_vector_resp)
@@ -1522,7 +1518,7 @@ def get_directions(data, beam_start=np.array([0, 128, 128]), beam_end=np.array([
                 abs(end_point[1] - VolumeBoundaries.BEAM_CENTER.value))
     # Swap points if end_point is closer to the beam zone than start_point
     if dist_end < dist_start:
-        start_point, end_point = end_point, start_point
+        start_point, end_point = end_point, start_point    
     return end_point, start_point, beam_vector, dirVecTrackNorm, track_mean, closest_points
 
 # Function to get the intersection by using the closest distance between two lines.
@@ -1851,13 +1847,14 @@ def calculate_metric_low_energy(data_incoming, gmm=True, orl=None):
                 track1 = tracks_dict[label1][:, :3]
                 track2 = tracks_dict[label2][:, :3]
                 end_point1, start_point1, beam_vector1, dirVecTrackNorm1, track_mean1, closest_points1 = get_directions(track1)
-                end_point2, start_point2, beam_vector2, dirVecTrackNorm2, track_mean2, closest_points2 = get_directions(track2)
+                end_point2, start_point2, beam_vector2, dirVecTrackNorm2, track_mean2, closest_points2 = get_directions(track2)                
                 dist1 = np.linalg.norm(end_point1 - start_point2)
                 dist2 = np.linalg.norm(end_point2 - start_point1)
+                dist3 = np.linalg.norm(end_point2 - end_point1)
                 # Calculate the number of points in each track
                 num_points_track1 = len(track1)
                 num_points_track2 = len(track2)
-                metrics_low_energy[(label1, label2)] = (min(dist1, dist2), num_points_track1, num_points_track2, unique_gmm_labels)
+                metrics_low_energy[(label1, label2)] = (min(dist1, dist2, dist3), num_points_track1, num_points_track2, unique_gmm_labels)
 
     return metrics_low_energy
 
@@ -1936,10 +1933,10 @@ def track_passes_all_conditions(vertex, direction, range_):
     beam_vector = beam_vector / np.linalg.norm(beam_vector)
 
     phi_angle = calculate_phi_angle(direction, beam_vector)
-    print('input_phi_angle', phi_angle, end_point)
+    # print('input_phi_angle', phi_angle, end_point)
 
     cond_phi_ok = not (70 <= abs(phi_angle) <= 110)
-    print(cond_vertex_inside, cond_end_inside, cond_end_outside_beam_zone, cond_phi_ok)
+    # print(cond_vertex_inside, cond_end_inside, cond_end_outside_beam_zone, cond_phi_ok)
     return all([
         cond_vertex_inside,
         cond_end_inside,
@@ -2010,6 +2007,7 @@ for energy in excitation_energies:
                                                     Elab = round(math.degrees(entries.data.input_theta_lab), 2)
                                                     )
                     if RunParameters.calculate_geometric_efficiency.value:
+                        print('Calculating Geometric Efficiency')
                         print(event_info.verX, event_info.verY, event_info.verZ, event_info.dirX, event_info.dirY, event_info.dirZ, event_info.Eenergy, energy_range_calculate(event_info.Eenergy*1000))
 
                         vertex = np.array([event_info.verX, event_info.verY, event_info.verZ])
@@ -2018,10 +2016,10 @@ for energy in excitation_energies:
                         range_ = energy_range_calculate(event_info.Eenergy * 1000)
 
                         if track_passes_all_conditions(vertex, direction, range_):
-                            print("Track is accepted.")
+                            print("Track is accepted geometrically.")
                             arr_event.append([event_info.event_id, 1])
                         else:
-                            print("Track is rejected.")
+                            print("Track is rejected geometrically.")
                             arr_event.append([event_info.event_id, 0])
                         end_point_1 = vertex + direction * range_
                         end_point_2 = vertex - direction * range_
@@ -2117,7 +2115,7 @@ for energy in excitation_energies:
 
                     print('Number of unique ransac reg labels', np.unique(data_array[:, DataArray.ransac_labels.value]))
                     angles_ransac, intersections_ransac, start_point_ransac, end_point_ransac, phi_angle_ransac, ranges_initial, ranges_final = kinematics_ransac(data_array, fitted_models, False, orl = old_ransac_labels)
-                    print('RANSAC angles', angles_ransac, ranges_final, phi_angle_ransac, start_point_ransac, end_point_ransac, intersections_ransac)
+                    print('RANSAC angles', angles_ransac)
                     ransac['angles'] = angles_ransac
                     ransac['intersections'] = intersections_ransac
                     ransac['start_point'] = start_point_ransac
@@ -2213,8 +2211,7 @@ for energy in excitation_energies:
 
                     angles_gmm, intersections_gmm, angles_minimize_gmm, start_point_gmm, end_point_gmm, closest_resp, closest_angle, phi_angle_gmm, data_with_filters, gmm_ranges_initial, gmm_ranges_final = kinematics_gmm(data_array, responsibilities, event_info)
 
-                    print('GMM angles', angles_gmm)
-                    print(start_point_gmm, end_point_gmm)
+                    print('GMM angles', angles_gmm)                    
                     gmm['angles'] = angles_gmm
                     gmm['intersections'] = intersections_gmm
                     gmm['start_point'] = start_point_gmm
@@ -2292,28 +2289,11 @@ for energy in excitation_energies:
 
                     ransac_noise_mask = data_array[:, DataArray.ransac_labels.value] != 20  # Exclude points with label 20
                     gmm_noise_mask = data_array[:, DataArray.gmm_labels.value] != -1  # Exclude points with -1
-
-
-                    a = data_array[:, DataArray.ransac_labels.value]
-                    b = old_ransac_labels
-                    # Check if arrays are completely equal
-                    print(np.array_equal(a, b))  # False
-
-                    # Common elements
-                    print("Common:", np.intersect1d(a, b))  # [4 5]
-
-                    # Elements in a but not in b
-                    print("In a but not b:", np.setdiff1d(a, b))  # [1 2 3]
-
-                    # Elements in b but not in a
-                    print("In b but not a:", np.setdiff1d(b, a))  # [6 7 8]
-                    
-                    print("Same clustering?", adjusted_rand_score(a, b))
-
+                
                     ransac['ari'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels_sim.value], data_array[:, DataArray.ransac_labels.value]), 2)                    
                     ransac['filtered_ari'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels_sim.value], old_ransac_labels), 2)                    
                     # ransac['filtered_ari'] = round(adjusted_rand_score(data_array[ransac_noise_mask, DataArray.true_labels_sim.value], data_array[ransac_noise_mask, DataArray.ransac_labels.value]), 2)
-                    print(ransac['ari'], ransac['filtered_ari'])
+                    # print(ransac['ari'], ransac['filtered_ari'])
                     ransac['label_info'] = ransac_reduced_k
                     gmm['ari'] = round(adjusted_rand_score(data_array[:, DataArray.true_labels_sim.value], data_array[:, DataArray.gmm_labels.value]), 2)
                     gmm['filtered_ari'] = round(adjusted_rand_score(data_array[gmm_noise_mask, DataArray.true_labels_sim.value], data_array[gmm_noise_mask, DataArray.gmm_labels.value]), 2)

@@ -73,9 +73,9 @@ hist_tt.Draw("HIST SAME")
 
 # Create a legend
 legend = ROOT.TLegend(0.65, 0.70, 0.88, 0.88)
-legend.AddEntry(hist_bb, "#it{p}_{#it{ij}}^{(BB)}", "l")
-legend.AddEntry(hist_bt, "#it{p}_{#it{ij}}^{(BE)}", "l")
-legend.AddEntry(hist_tt, "#it{p}_{#it{ij}}^{(EE)}", "l")
+legend.AddEntry(hist_bb, "#it{p}_{#it{kl}}^{(BB)}", "l")
+legend.AddEntry(hist_bt, "#it{p}_{#it{kl}}^{(BE)}", "l")
+legend.AddEntry(hist_tt, "#it{p}_{#it{kl}}^{(EE)}", "l")
 legend.Draw()
 
 canvas.Update()

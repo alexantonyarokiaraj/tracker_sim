@@ -6,8 +6,8 @@ from collections import defaultdict
 
 # Settings
 excitation_energies = [10]
-cm_angles = [1, 2, 3, 4, 5]
-base_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/beta/"
+cm_angles = [3]
+base_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/root_files/testing/"
 volume_min, volume_max = 10, 246
 beam_zone_min, beam_zone_max = 120, 134
 hist_range = (-20, 20)
@@ -100,7 +100,7 @@ for energy in excitation_energies:
         ransac_beta_diff_map = defaultdict(list)
         gmm_beta_diff_map = defaultdict(list)
 
-        pattern = os.path.join(base_path, f"beta_sim_5000_{energy}mev_{cm}cm_*_*.root")
+        pattern = os.path.join(base_path, f"ari_sim_5000_{energy}mev_{cm}cm_*_*_*.root")
         file_list = glob.glob(pattern)
 
         for filepath in file_list:
@@ -148,7 +148,7 @@ for energy in excitation_energies:
     # Convert and save the combined data
     gmm_array = np.array(all_gmm_data)
 
-    output_array_dir = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta/histograms/"
+    output_array_dir = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/root_files/testing/"
     os.makedirs(output_array_dir, exist_ok=True)
 
     np.save(os.path.join(output_array_dir, f"gmm_sigma_vs_beta_all_angles_{energy}MeV.npy"), gmm_array)

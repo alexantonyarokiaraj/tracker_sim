@@ -150,8 +150,9 @@ class Regularize:
 
                     dist1 = np.linalg.norm(end_point1 - start_point2)
                     dist2 = np.linalg.norm(end_point2 - start_point1)
+                    dist3 = np.linalg.norm(end_point2 - end_point1)
 
-                    custom_metric = min(dist1, dist2)
+                    custom_metric = min(dist1, dist2, dist3)
                     # Apply threshold
                     if custom_metric > self.low_energy_threshold:
                         custom_metric = 0
