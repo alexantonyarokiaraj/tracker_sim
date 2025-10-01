@@ -533,7 +533,7 @@ def fill_event_data_to_tree(result, event_data):
         gmm_bb_unique_label.push_back(unique_gmm_label)
 
     for metric in event_data.gmm["track_track_metric"].values():
-        p_value, size1, size2, unique_gmm_label = metric
+        p_value, size1, size2, unique_gmm_label = metric        
         gmm_tt_metric.push_back(p_value)
         gmm_tt_size1.push_back(int(size1))
         gmm_tt_size2.push_back(int(size2))

@@ -23,13 +23,13 @@ class DataArray(Enum):
 
 class RunParameters(Enum):
     sim = True
-    plots = False
+    plots = True
     debug=False
     final_plots_flag = False
     save_final_data=False
     with_missing_pads = True
-    batch_mode = True
-    save_to_root = True
+    batch_mode = False
+    save_to_root = False
     save_python_figures = False
     zoom_in_length = 40
     optimize_alpha = True

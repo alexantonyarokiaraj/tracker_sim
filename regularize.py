@@ -152,7 +152,7 @@ class Regularize:
                     dist2 = np.linalg.norm(end_point2 - start_point1)
                     dist3 = np.linalg.norm(end_point2 - end_point1)
 
-                    custom_metric = min(dist1, dist2, dist3)
+                    custom_metric = min(dist1, dist2, dist3)                    
                     # Apply threshold
                     if custom_metric > self.low_energy_threshold:
                         custom_metric = 0
@@ -210,7 +210,7 @@ class Regularize:
             if self.merge_type == 'p_value':
                 G = self.calculate_g_matrix_p_value(xyz_data, clusters)
             if self.merge_type == 'cdist':
-                G = self.calculate_g_matrix_cdist(xyz_data, clusters)
+                G = self.calculate_g_matrix_cdist(xyz_data, clusters)                
             # Find non-zero indices in the G matrix
             non_zero_indices = np.argwhere(G != 0)
             if non_zero_indices.size == 0 or iteration > 50:
@@ -236,7 +236,7 @@ class Regularize:
                         clusters[clusters == old_label] = new_label
 
             # Update cluster labels and unique clusters
-            unique_clusters = np.unique(clusters)
+            unique_clusters = np.unique(clusters)            
 
         return clusters
 
