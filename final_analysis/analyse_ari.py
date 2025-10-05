@@ -5,13 +5,13 @@ import glob
 # Define parameters
 # ----------------------------
 exc_energy = [10]
-cm_angle = [1,2,3,4,5]
+cm_angle = [2]
 files = []
 
 # Find files matching the pattern
 for ex in exc_energy:
     for cm in cm_angle:
-        file_pattern = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/root_files/final_sim_5000_{ex}mev_{cm}cm_*.root"
+        file_pattern = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/root_files_1/final_sim_5000_{ex}mev_{cm}cm_*.root"
         matched_files = glob.glob(file_pattern)
         files.extend(matched_files)
 

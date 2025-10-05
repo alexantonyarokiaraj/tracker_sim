@@ -1491,7 +1491,7 @@ def get_directions(data, beam_start=np.array([0, 128, 128]), beam_end=np.array([
     # non_constant_features = data
 
     if np.any(np.std(data, axis=0) == 0):
-        print("Warning: Constant features detected.")
+        # print("Warning: Constant features detected.")
         non_constant_features = data[:, np.std(data, axis=0) > 0]        
         # sys.exit(1)
 

@@ -16,7 +16,7 @@ cm_values = [1, 2, 3, 4, 5]
 # Loop through excitation energy and CM combinations
 for ex in excitation_energies:
     for cm in cm_values:
-        file_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/root_files/"
+        file_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/root_files_1/"
         file_pattern = f"final_sim_5000_{ex}mev_{cm}cm_*.root"
         file_list = glob.glob(file_path + file_pattern)
         print('file_pattern', file_pattern)
@@ -45,7 +45,7 @@ for ex in excitation_energies:
                 # Fill hist_tt histogram
                 if len(chain.gmm_tt_metric) == len(chain.gmm_tt_size1) == len(chain.gmm_tt_size2):
                     for i in range(len(chain.gmm_tt_metric)):
-                        if chain.gmm_tt_size1[i] > 20 and chain.gmm_tt_size2[i] > 20:
+                        if chain.gmm_tt_size1[i] > 2 and chain.gmm_tt_size2[i] > 2:
                             hist_tt.Fill(chain.gmm_tt_metric[i])
 
 # Assuming hist_bb, hist_bt, and hist_tt are already defined as TH1 objects
