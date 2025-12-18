@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 # Settings
 excitation_energies = [10]
 cm_angles = [5]
-base_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/gamma_2_run/"
+base_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/root_files_2/"
 volume_min, volume_max = 10, 246
 beam_zone_min, beam_zone_max = 120, 134
 hist_range = (-20, 20)
@@ -110,7 +110,7 @@ reason_tracker = {
 
 for energy in excitation_energies:
     for cm in cm_angles:
-        pattern = os.path.join(base_path, f"gamma_sim_5000_{energy}mev_{cm}cm_*_*.root")
+        pattern = os.path.join(base_path, f"final_sim_5000_{energy}mev_{cm}cm_*_*_1.root")
         file_list = glob.glob(pattern)
 
         for filepath in file_list:
@@ -126,18 +126,5 @@ df_ransac = reason_dict_to_df(reason_tracker["RANSAC"], "RANSAC")
 df_all = pd.concat([df_gmm, df_ransac], ignore_index=True)
 
 # Export to CSV (optional)
-df_all.to_csv("filter_rejections_gmm_ransac_5cm.csv", index=False)
+df_all.to_csv("filter_rejections_gmm_ransac_5cm_e1e2metricno.csv", index=False)
 
-# # UpSet plot
-# def plot_upset(df, method_label):
-#     df_method = df[df["method"] == method_label]
-#     upset_data = from_indicators(filter_names, df_method)
-#     plt.figure(figsize=(10, 6))
-#     upset_plot(upset_data, sort_by='cardinality')
-#     plt.title(f"UpSet Plot: {method_label}")
-#     plt.tight_layout()
-#     plt.savefig(f"upset_plot_{method_label}.png")
-#     plt.show()
-
-# plot_upset(df_all, "RANSAC")
-# plot_upset(df_all, "GMM")

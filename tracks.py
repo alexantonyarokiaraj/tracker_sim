@@ -41,6 +41,7 @@ import warnings
 from energy import Energy
 import pandas as pd
 from scipy import interpolate
+import time
 
 import math
 
@@ -552,7 +553,7 @@ def generate_true_labels(data_array, event_info):
 
 def plot_ransac(data_array, event_info, vertex=None, endpoint=None, end_point_geom=None, orl=None):
     labels = data_array[:, DataArray.ransac_labels.value]
-    labels = orl
+    # labels = orl
     cmap = plt.cm.get_cmap("Dark2", len(np.unique(labels)))
     update_clear(ax8)
     update_clear(ax9)
@@ -825,6 +826,7 @@ def kinematics_ransac(data_initial, fitted_models, useLineModelND, orl = None, e
                 # Fill the lab angles and intersections based on first PCA fit.
                 end_point_full, start_point_full, beam_vector_full, dirVecTrackNorm_full, track_mean_full, closest_points_full = get_directions(cut_data)
                 track_vector_full = end_point_full - start_point_full
+                print('RANSAC Fit', label, start_point_full, end_point_full)
                 intersection_point_full = closest_point_on_line1(start_point_full, track_vector_full, np.array([0,128,128]), beam_vector_full)
                 filtered_data_beta = np.array([])
                 if RunParameters.use_beta_fraction.value:
@@ -1010,6 +1012,7 @@ def fit_gmm_with_bic(data, max_components=10):
         gmm = GaussianMixture(n_components=n_components, covariance_type='full', random_state=42)
         gmm.fit(features)
         bic = gmm.bic(features)
+        print('GMM Iterations->', n_components, gmm.n_iter_, gmm.converged_, gmm.tol)
 
         # Check if this model has the lowest BIC
         if bic < best_bic:
@@ -1025,7 +1028,7 @@ def fit_gmm_with_bic(data, max_components=10):
 
 # Function to plot the GMM assigned clusters
 def plot_gmm(data_array, event_info, color = 'blue', size=50, vertex=None, endpoint=None, end_point_geom=None):    
-    labels = data_array[:, DataArray.merge_cdist.value]
+    labels = data_array[:, DataArray.gmm_labels.value]
     cmap = plt.cm.get_cmap("Dark2", len(np.unique(labels)))
     update_clear(ax11)
     update_clear(ax12)
@@ -1127,6 +1130,7 @@ def kinematics_gmm(data_initial, responsibilities, event_info):
                 # Fill the lab angles and intersections based on first PCA fit.
                 end_point_full, start_point_full, beam_vector_full, dirVecTrackNorm_full, track_mean_full, closest_points_full = get_directions(cut_data)
                 track_vector_full = end_point_full - start_point_full
+                print('GMM Track fit', label, end_point_full, start_point_full)
                 intersection_point_full = closest_point_on_line1(start_point_full, track_vector_full, np.array([0,128,128]), beam_vector_full)
                 filtered_data_beta = np.array([])
                 if RunParameters.use_beta_fraction.value:
@@ -1753,6 +1757,7 @@ def hierarchical_clustering_with_responsibilities(data_array, max_components=10)
     - final_responsibilities (np.ndarray): Responsibility matrix of shape (n_points, total_gmm_clusters).
     """
     # Step 1: Perform DBSCAN clustering
+    start_dbscan = time.perf_counter()
     dbscan_labels, valid_cluster, epsilon_ = dbcluster(
         data_array,
         SCAN.N_PROC.value,
@@ -1763,6 +1768,10 @@ def hierarchical_clustering_with_responsibilities(data_array, max_components=10)
         SCAN.EPS_THRESHOLD.value,
         SCAN.EPS_MODE.value
     )
+    end_dbscan = time.perf_counter()
+    elapsed_dbscan = end_dbscan - start_dbscan
+    print(f"DBSCAN computation time: {elapsed_dbscan:.6f} seconds")
+
 
     if not valid_cluster:
         print("DBSCAN clustering failed.")
@@ -1775,7 +1784,7 @@ def hierarchical_clustering_with_responsibilities(data_array, max_components=10)
     final_responsibilities = -1 * np.ones((num_points, 0))
 
     current_label_offset = 0
-
+    elapsed_gmm =[]
     for cluster_id in unique_clusters:
         if cluster_id == -1:
             continue
@@ -1783,7 +1792,11 @@ def hierarchical_clustering_with_responsibilities(data_array, max_components=10)
         cluster_mask = dbscan_labels == cluster_id
         cluster_data = data_array[cluster_mask]
 
+        start_gmm = time.perf_counter()
         gmm_labels, n_comp, responsibilities = fit_gmm_with_bic(cluster_data, max_components=max_components)
+        end_gmm = time.perf_counter()
+        elapsed_gmm.append(end_gmm - start_gmm)
+        print(f"GMM computation time: {end_gmm-start_gmm:.6f} seconds")
 
         global_gmm_labels = gmm_labels + current_label_offset
         final_labels[cluster_mask] = global_gmm_labels
@@ -1794,7 +1807,7 @@ def hierarchical_clustering_with_responsibilities(data_array, max_components=10)
 
         current_label_offset += n_comp
 
-    return final_labels, current_label_offset, final_responsibilities, dbscan_labels
+    return final_labels, current_label_offset, final_responsibilities, dbscan_labels, elapsed_dbscan, elapsed_gmm
 
 
 def clean_p_values(p_values: dict) -> dict:
@@ -1876,7 +1889,7 @@ def calculate_metric_low_energy(data_incoming, gmm=True, orl=None):
                 # Calculate the number of points in each track                
                 num_points_track1 = len(track1)
                 num_points_track2 = len(track2)
-                metrics_low_energy[(label1, label2)] = (min(dist1, dist2, dist3), num_points_track1, num_points_track2, unique_gmm_labels)
+                metrics_low_energy[(label1, label2)] = (min(dist1, dist2), num_points_track1, num_points_track2, unique_gmm_labels)
 
     return metrics_low_energy
 
@@ -1972,7 +1985,8 @@ def track_passes_all_conditions(vertex, direction, range_):
 
 for energy in excitation_energies:
     for angle in cm_angles:
-
+        timing_file = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/timing_1000/timing_results_core_{energy}_{angle}_{event_start}_{event_end}.txt"
+        timing_results = []
         filename = path+"sim_5000_"+str(energy)+"mev_"+str(angle)+"cm.root"
         f = TFile(filename)
         myTree = f.Get("SimulatedTree")
@@ -1991,11 +2005,10 @@ for energy in excitation_energies:
         EventInfo = namedtuple('Events', ['event_id', 'verX', 'verY', 'verZ', 'dirX', 'dirY', 'dirZ', 'Eenergy', 'Elab', 'ransac', 'gmm', 'end_points'])
         EventInfoList = []
         exception_events = []
-
+        
         for entries in myTree:
             try:
-                if entries.data.event >= event_start and entries.data.event <= event_end:
-
+                if entries.data.event >= event_start and entries.data.event <= event_end:                    
                     print('Event -->', entries.data.event)
                     event_info = EventInfo(event_id=None,
                                         verX= None,
@@ -2029,7 +2042,7 @@ for energy in excitation_energies:
                                                     Elab = round(math.degrees(entries.data.input_theta_lab), 2)
                                                     )
                     if RunParameters.calculate_geometric_efficiency.value:                        
-                        # print(event_info.verX, event_info.verY, event_info.verZ, event_info.dirX, event_info.dirY, event_info.dirZ, event_info.Eenergy, energy_range_calculate(event_info.Eenergy*1000))
+                        print(event_info.verX, event_info.verY, event_info.verZ, event_info.dirX, event_info.dirY, event_info.dirZ, event_info.Eenergy, energy_range_calculate(event_info.Eenergy*1000))
 
                         vertex = np.array([event_info.verX, event_info.verY, event_info.verZ])
                         direction = np.array([event_info.dirX, event_info.dirY, event_info.dirZ])
@@ -2059,7 +2072,7 @@ for energy in excitation_energies:
                         data_array, incoming_labels = get_data_array(beam_center, entries, event_info)
                         if debug:
                             print('Data recorded in event')
-                            print(data_array)
+                        # print(np.unique(incoming_labels))
 
                     end_points_data_array = get_yz_min_max(data_array)
                     # print('End Points')
@@ -2071,6 +2084,11 @@ for energy in excitation_energies:
                     true_labels_sim = assign_beam_or_scattered(data_array, incoming_labels)
                     data_array = np.column_stack((data_array, incoming_labels))
                     data_array = np.column_stack((data_array, true_labels_sim))
+                    
+                    labels, counts = np.unique(true_labels_sim, return_counts=True)
+
+                    for label, count in zip(labels, counts):
+                        print(f"Label {label}: {count} points, total: {len(data_array[:,0])}")                   
 
                     # Assign True Labels
                     # data_array = [x,y,z,q,track_ID, true_labels_sim, true_labels_hard ]
@@ -2083,18 +2101,48 @@ for energy in excitation_energies:
                     if RunParameters.use_iterative_ransac.value:                        
                         ransac_labels, fitted_models = iterative_ransac_with_suppression(data_array, max_lines=RansacParameters.MAX_LINES.value, residual_threshold=RansacParameters.RESIDUAL_THRESHOLD.value, n_iterations=RansacParameters.N_ITERATIONS.value, min_samples=10, suppression_factor=suppression_factor)
                     else:
+                        start = time.perf_counter()
                         ransac_labels, fitted_models = find_multiple_lines_ransac(data_array, max_lines=RansacParameters.MAX_LINES.value, residual_threshold=RansacParameters.RESIDUAL_THRESHOLD.value, n_iterations=RansacParameters.N_ITERATIONS.value)                        
+                        end = time.perf_counter()
+                        elapsed = end - start
+                        print(f"RANSAC computation time: {elapsed:.6f} seconds")
+                    
+
                     data_array = np.column_stack((data_array, ransac_labels))
                     ransac['components'] = len(np.unique(ransac_labels))                    
 
                     #Get Prediced Labels from GMM
                     # data_array = [0-x,1-y,2-z,3-q,4-track_ID, 5-true_labels_sim, 6-true_labels_hard, 7-ransac labels, 8-gmm labels, 9-dbscan labels, 10 - merge labels]
-                    gmm_labels, n_comp, responsibilities, dbscan_labels = hierarchical_clustering_with_responsibilities(data_array, max_components=10)
+                    gmm_labels, n_comp, responsibilities, dbscan_labels, elapsed_dbscan, elapsed_gmm = hierarchical_clustering_with_responsibilities(data_array, max_components=10)
 
                     data_array = np.column_stack((data_array, gmm_labels))
                     data_array = np.column_stack((data_array, dbscan_labels))
+
+                    start_merge = time.perf_counter()
                     reg = Regularize(data_array=data_array, threshold=Optimize.P_VALUE.value, merge_type='p_value', merge_algorithm='gmm')
                     final_clusters = reg.merge_labels()
+                    end_merge = time.perf_counter()
+                    elapsed_merge = end_merge - start_merge
+
+                    print(f"Merge computation time: {elapsed_merge:.6f} seconds")
+
+                    print(energy, angle, len(data_array[:,0]), elapsed, elapsed_dbscan, sum(elapsed_gmm), elapsed_merge)
+                    
+                    # with open(timing_file, "a") as f:
+                    #     f.write(f"{energy}\t{angle}\t{event_start}\t{event_end}\t{len(data_array[:,0])}\t{elapsed:.6f}\t{elapsed_dbscan:.6f}\t{sum(elapsed_gmm):.6f}\t{elapsed_merge:.6f}\n")
+                    
+                    # print("File written")
+                    timing_results.append((
+                                            energy,
+                                            angle,
+                                            event_start,
+                                            event_end,
+                                            len(data_array[:,0]),
+                                            elapsed,
+                                            elapsed_dbscan,
+                                            sum(elapsed_gmm),
+                                            elapsed_merge
+                                        ))
 
                     # data_array = [0-x,1-y,2-z,3-q,4-track_ID, 5-true_labels_sim, 6-true_labels_hard, 7-ransac labels, 8-gmm labels, 9-dbscan labels, 10 - merge labels, 11 - merge_cdist labels]
                     data_array = np.column_stack((data_array, final_clusters))
@@ -2130,7 +2178,7 @@ for energy in excitation_energies:
                         colorbars_ransac = plot_ransac(data_array, event_info, vertex=vertex, endpoint=end_point_geom, end_point_geom=end_point_geom, orl=old_ransac_labels)
                     
                     angles_ransac, intersections_ransac, start_point_ransac, end_point_ransac, phi_angle_ransac, ranges_initial, ranges_final = kinematics_ransac(data_array, fitted_models, False, orl = old_ransac_labels, event_info=event_info)
-                    print('RANSAC angles', angles_ransac)
+                    print('RANSAC angles', angles_ransac, phi_angle_ransac)
                     ransac['angles'] = angles_ransac
                     ransac['intersections'] = intersections_ransac
                     ransac['start_point'] = start_point_ransac
@@ -2210,7 +2258,7 @@ for energy in excitation_energies:
                         print('Multiplicity Distances')
                         print(cdist_dict)
 
-                    # np.save('/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/text_files/sim_10mev_3cm_event335.npy',data_array)
+                    # np.save('/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/text_files/sim_10mev_5cm_event1323.npy',data_array)
 
                     gmm['components'] = n_comp
 
@@ -2219,7 +2267,7 @@ for energy in excitation_energies:
 
                     angles_gmm, intersections_gmm, angles_minimize_gmm, start_point_gmm, end_point_gmm, closest_resp, closest_angle, phi_angle_gmm, data_with_filters, gmm_ranges_initial, gmm_ranges_final = kinematics_gmm(data_array, responsibilities, event_info)
 
-                    print('GMM angles', angles_gmm)                    
+                    print('GMM angles', angles_gmm, phi_angle_gmm)                    
                     gmm['angles'] = angles_gmm
                     gmm['intersections'] = intersections_gmm
                     gmm['start_point'] = start_point_gmm
@@ -2259,6 +2307,8 @@ for energy in excitation_energies:
                     gmm['beam_beam_metric'] = clean_p_values(beam_metrics)
                     gmm['track_track_metric'] = clean_p_values(track_metrics)
                     gmm['beam_track_metric'] = clean_p_values(beam_track_metrics)
+                    print('Printing beam beam metric')
+                    print(gmm['track_track_metric'])
 
                     # Calculate the number of components beam/track
                     unique_beam_ransac, unique_track_ransac, unique_beam_gmm, unique_track_gmm = beam_track_data(data_array)
@@ -2307,7 +2357,7 @@ for energy in excitation_energies:
 
                     #Final Visualization Closures
                     if plots:
-                        # print('Plot here')
+                        print('Plot here')
                         plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1, hspace=0.3, wspace=0.3)
                         plt.show(block=False)
                         next_pressed = False
@@ -2330,6 +2380,9 @@ for energy in excitation_energies:
                 exception_events.append(entries.data.event)
                 continue
         print('Exited the file', exception_events)
+        # with open(timing_file, "a") as f1:
+        #     for row in timing_results:
+        #         f1.write("\t".join(str(x) for x in row) + "\n")
         if save_to_root:
             print('Saving to ROOT File')
             result["tree"].Write()

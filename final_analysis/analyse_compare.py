@@ -5,10 +5,10 @@ import os
 
 # Settings
 excitation_energies = [10]
-cm_angles = [1,2,3,4,5]
+cm_angles = [1, 2, 3,4,5]
 # suppression_factor = range(32)
 suppression_factor = [1]
-base_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/root_files/"
+base_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/root_files_3/"
 volume_min, volume_max = 10, 246
 beam_zone_min, beam_zone_max = 120, 134
 hist_range = (-20, 20)
@@ -90,7 +90,7 @@ for energy in excitation_energies:
             ransac_diffs = []
             gmm_diffs = []
 
-            pattern = os.path.join(base_path, f"final_sim_5000_{energy}mev_{cm}cm_*_*_{suppress}.root")
+            pattern = os.path.join(base_path, f"comp_sim_5000_{energy}mev_{cm}cm_*_*_1.root")
             file_list = glob.glob(pattern)
 
             for filepath in file_list:
@@ -102,10 +102,17 @@ for energy in excitation_energies:
                 ransac_diffs += ransac_diff
                 gmm_diffs += gmm_diff
 
-                # Identify GMM-only events
+                # Identify GMM-only and RANSAC-only events
                 gmm_only_ids = set(gmm_ids) - set(ransac_ids)
+                ransac_only_ids = set(ransac_ids) - set(gmm_ids)
+
+                # Print GMM-only events
                 for eventid in gmm_only_ids:
                     print(f"EventID {eventid} is present in GMM but not in RANSAC for file: {filepath}")
+
+                # Print RANSAC-only events
+                for eventid in ransac_only_ids:
+                    print(f"EventID {eventid} is present in RANSAC but not in GMM for file: {filepath}")
 
             # Create canvas and histograms
             canvas = ROOT.TCanvas(f"c_{energy}_{cm}", f"Energy {energy} MeV, CM {cm}°", 1200, 600)
@@ -157,7 +164,7 @@ for energy in excitation_energies:
 
 
             canvas.Update()
-            canvas.SaveAs(f"histogram_{energy}MeV_{cm}cm_{suppress}su_7.png")
-            # canvas.WaitPrimitive()
+            canvas.SaveAs(f"his_{energy}MeV_{cm}cm_{suppress}su_metrice1e2.png")
+            canvas.WaitPrimitive()
 
-np.save('list.npy',np.array(list_values))
+# np.save('list_e1e2metric.npy',np.array(list_values))

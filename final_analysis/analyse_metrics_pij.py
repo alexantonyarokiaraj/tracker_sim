@@ -33,20 +33,22 @@ for ex in excitation_energies:
                 # Fill hist_bb histogram
                 if len(chain.gmm_bb_metric) == len(chain.gmm_bb_size1) == len(chain.gmm_bb_size2):
                     for i in range(len(chain.gmm_bb_metric)):
-                        if chain.gmm_bb_size1[i] > 40 and chain.gmm_bb_size2[i] > 40:
+                        if chain.gmm_bb_size1[i] > 40 or chain.gmm_bb_size2[i] > 40:
                             hist_bb.Fill(chain.gmm_bb_metric[i])
 
                 # Fill hist_bt histogram
                 if len(chain.gmm_bt_metric) == len(chain.gmm_bt_size1) == len(chain.gmm_bt_size2):
                     for i in range(len(chain.gmm_bt_metric)):
-                        if chain.gmm_bt_size1[i] > 10 and chain.gmm_bt_size2[i] > 10:
+                        if chain.gmm_bt_size1[i] > 10 or chain.gmm_bt_size2[i] > 10:
                             hist_bt.Fill(chain.gmm_bt_metric[i])
 
                 # Fill hist_tt histogram
                 if len(chain.gmm_tt_metric) == len(chain.gmm_tt_size1) == len(chain.gmm_tt_size2):
                     for i in range(len(chain.gmm_tt_metric)):
-                        if chain.gmm_tt_size1[i] > 2 and chain.gmm_tt_size2[i] > 2:
+                        if chain.gmm_tt_size1[i] > 10 or chain.gmm_tt_size2[i] > 10:
                             hist_tt.Fill(chain.gmm_tt_metric[i])
+                            if chain.gmm_tt_metric[i] < 0.1:
+                                print(chain.eventid[0], ex,cm)
 
 # Assuming hist_bb, hist_bt, and hist_tt are already defined as TH1 objects
 if hist_bb.Integral() > 0:

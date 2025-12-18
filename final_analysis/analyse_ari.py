@@ -5,13 +5,13 @@ import glob
 # Define parameters
 # ----------------------------
 exc_energy = [10]
-cm_angle = [2]
+cm_angle = [1, 2, 3, 4, 5]
 files = []
 
 # Find files matching the pattern
 for ex in exc_energy:
     for cm in cm_angle:
-        file_pattern = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/root_files_1/final_sim_5000_{ex}mev_{cm}cm_*.root"
+        file_pattern = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/root_files_2/final_sim_5000_{ex}mev_{cm}cm_*.root"
         matched_files = glob.glob(file_pattern)
         files.extend(matched_files)
 
@@ -118,9 +118,9 @@ hist_ransac.SetMaximum(max_y * 1.1)
 # Draw histograms
 hist_ransac.Draw("HIST")
 hist_gmm_pval.Draw("HIST SAME")
-hist_gmm_cdist.Draw("HIST SAME")
-hist_ransac_filtered.Draw("HIST SAME")
-hist_gmm.Draw("HIST SAME")
+# hist_gmm_cdist.Draw("HIST SAME")
+# hist_ransac_filtered.Draw("HIST SAME")
+# hist_gmm.Draw("HIST SAME")
 
 # Axis labels
 hist_ransac.GetXaxis().SetTitle("Adjusted Rand Index (ARI)")
@@ -143,11 +143,11 @@ print(f"  GMM                 → mean = {mean_gmm:.4f}, entries = {entries_gmm}
 
 # Legend
 legend = ROOT.TLegend(0.55, 0.55, 0.9, 0.9)
-legend.AddEntry(hist_ransac, f"RANSAC, mean = {mean_ransac:.2f}", "l")
-legend.AddEntry(hist_gmm_pval, f"#it{{R}}_{{pij}}, mean = {mean_gmm_pval:.2f}", "l")
-legend.AddEntry(hist_gmm_cdist, f"#it{{R}}_{{pij,cij}}, mean = {mean_gmm_cdist:.2f}", "l")
-legend.AddEntry(hist_ransac_filtered, f"RANSAC (filtered), mean = {mean_ransac_filtered:.2f}", "l")
-legend.AddEntry(hist_gmm, f"GMM, mean = {mean_gmm:.2f}", "l")
+legend.AddEntry(hist_ransac, f"RANSAC", "l")
+legend.AddEntry(hist_gmm_pval, f"GMM regularized by #it{{p}}_{{kl}}", "l")
+# legend.AddEntry(hist_gmm_cdist, f"#it{{R}}_{{pij,cij}}, mean = {mean_gmm_cdist:.2f}", "l")
+# legend.AddEntry(hist_ransac_filtered, f"RANSAC (filtered), mean = {mean_ransac_filtered:.2f}", "l")
+# legend.AddEntry(hist_gmm, f"GMM, mean = {mean_gmm:.2f}", "l")
 legend.Draw()
 
 # Save and update
