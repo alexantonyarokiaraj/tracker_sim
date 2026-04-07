@@ -52,11 +52,11 @@ def find_iterative_lines_ransac(data_array, max_lines=10, residual_threshold=5.0
     return labels, fitted_models
 
 # Define the function to find multiple lines using RANSAC
-def find_multiple_lines_ransac(data_array, max_lines=10, residual_threshold=5.0, n_iterations=5000):
+def find_multiple_lines_ransac(data_array, max_lines=10, residual_threshold=5.0, n_iterations=5000, min_samples=2, min_inliers=10):
 
-    min_sam = 10
+    # min_sam = 10
 
-    labels = np.full(data_array.shape[0], 20)  # Initialize labels
+    labels = np.full(data_array.shape[0], -20)  # Initialize labels
     current_line_label = 1  # Start labeling lines from 1
 
     # Use a boolean mask to keep track of which points are still available
@@ -69,16 +69,16 @@ def find_multiple_lines_ransac(data_array, max_lines=10, residual_threshold=5.0,
         # Filter points based on the available mask
         points = data_array[available_points_mask, :3]  # Use x, y, z coordinates
 
-        if points.shape[0] > min_sam:
-            min_samples = int(min(min_sam, points.shape[0]))
-            # print(min_samples)
+        if points.shape[0] > min_samples:
+            min_samples = int(min(min_samples, points.shape[0]))
+            print('using min samples', min_samples)
             model_class = LineModelND  # Reference the model class
-            np.random.seed(42)
+            # np.random.seed(42)
             # random.seed(42)
             model, inlier_mask = ransac(points, model_class, min_samples=min_samples,
                                         residual_threshold=residual_threshold, max_trials=n_iterations)
 
-            if np.sum(inlier_mask) < min_sam:
+            if np.sum(inlier_mask) < min_inliers:
                 print("Not enough inliers found, skipping to the next line.")
                 continue
 

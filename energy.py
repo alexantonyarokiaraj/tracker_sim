@@ -46,11 +46,27 @@ class Energy:
             x, y = polygon1.exterior.xy
         total_area = []
         areas = [0, 0, 0]
+
+        # helper to iterate over shapely results which may be GeometryCollection
+        def _iter_geoms(g):
+            if hasattr(g, 'geoms'):
+                try:
+                    return list(g.geoms)
+                except Exception:
+                    pass
+            # some collections are iterable directly
+            if hasattr(g, '__iter__'):
+                try:
+                    return list(g)
+                except Exception:
+                    pass
+            return [g]
+
         cut_poly1 = split(polygon1, line1)
-        for i in cut_poly1:
+        for i in _iter_geoms(cut_poly1):
             if i.contains(point):
                 cut_poly2 = split(i, line2)
-                for j in cut_poly2:
+                for j in _iter_geoms(cut_poly2):
                     if j.contains(point):
                         total_area.append(j.area)
                         areas[1] = j.area
@@ -69,10 +85,43 @@ class Energy:
 
     def perp_line(self, x1, x2, y1, y2, cd_length):
         ab = LineString([(x1, y1), (x2, y2)])
+        # create parallel offset lines on both sides
         left = ab.parallel_offset(cd_length / 2, 'left')
         right = ab.parallel_offset(cd_length / 2, 'right')
-        c = left.boundary[1]
-        d = right.boundary[0]
+
+        # helper to extract a single point from a boundary geometry
+        def _boundary_point(geom, idx):
+            """Return one point from ``geom.boundary`` safely.
+
+            The boundary may be a ``Point``, ``LineString``, ``MultiPoint`` or
+            ``GeometryCollection``.  ``MultiPoint`` is iterable but not
+            subscriptable, which used to trigger
+            ``TypeError: 'MultiPoint' object is not subscriptable`` when
+            attempting to index it.  Normalise the boundary into a list first
+            and then pick the requested element (falling back to element 0).
+            """
+            b = geom.boundary
+            # attempt to convert to a list of geometries
+            geoms = []
+            if hasattr(b, '__iter__'):
+                try:
+                    geoms = list(b)
+                except Exception:
+                    geoms = []
+            if not geoms and hasattr(b, 'geoms'):
+                try:
+                    geoms = list(b.geoms)
+                except Exception:
+                    geoms = []
+            if not geoms:
+                geoms = [b]
+            if idx < len(geoms):
+                return geoms[idx]
+            else:
+                return geoms[0]
+
+        c = _boundary_point(left, 1)
+        d = _boundary_point(right, 0)
         cd = LineString([c, d])
         return c.x, c.y, d.x, d.y
 
@@ -89,6 +138,11 @@ class Energy:
 
     def calculate_profiles(self):
         # Initialization and Setup
+        #
+        # This routine relies on :meth:`perp_line` to compute perpendicular
+        # offsets for bin edges.  ``perp_line`` was recently strengthened to
+        # cope with ``shapely`` geometries whose ``boundary`` is a
+        # ``MultiPoint``; see its docstring for details.
         calibration_table = self.calib_table
         calibration_table.columns = ["chno", "xx", "yy", "par0", "par1", "chi"]
         data_array = self.points

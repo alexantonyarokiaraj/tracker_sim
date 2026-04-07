@@ -23,26 +23,26 @@ class DataArray(Enum):
 
 class RunParameters(Enum):
     sim = True
-    plots = True
+    plots = False
     debug=False
     final_plots_flag = False
     save_final_data=False
     with_missing_pads = True
-    batch_mode = False
-    save_to_root = False
+    batch_mode = True
+    save_to_root = True
     save_python_figures = False
     zoom_in_length = 40
     optimize_alpha = False
     optimize_beta = False
     optimize_gamma =  False
     optimize_cdist = False
-    optimize_pij = True
+    optimize_pij = False
     optimize_multiplicity = False
-    save_root_file = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/root_files_4/"
-    save_root_fig = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/images/mul_metrice1e2no/"
-    tag = "comp"
-    exc_file_name = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/root_files_4/"
-    range_lookup_table = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/LookupTable_e780_58Ni_68Ni_Alex.xlsx"
+    save_root_file = "/home2/user/u0100486/linux/doctorate/github/tracker_new/output/root_files_check_min_samples/"
+    save_root_fig = "/home2/user/u0100486/linux/doctorate/github/tracker_new/images/mul_metrice1e2no/"
+    tag = "check"
+    exc_file_name = "/home2/user/u0100486/linux/doctorate/github/tracker_new/output/root_files_check_min_samples/"
+    range_lookup_table = "/home2/user/u0100486/linux/doctorate/github/tracker_new/LookupTable_e780_58Ni_68Ni_Alex.xlsx"
     range_energy_conversion_sheet = "range_energy_he_he_cf4_mixed"
     use_cij_ransac = True
     use_beta_fraction = True
@@ -120,3 +120,5 @@ class RansacParameters(Enum):
     MAX_LINES = 10
     RESIDUAL_THRESHOLD = 5.0
     N_ITERATIONS = 5000
+    MIN_SAMPLES = 2
+    MIN_INLIERS = 10

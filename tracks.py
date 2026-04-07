@@ -61,7 +61,7 @@ input_string = arguments[1]
 split_strings = input_string.split('@')
 excitation_energies=[split_strings[0]]
 cm_angles=[split_strings[1]]
-path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/DATA/simulation/5000/"
+path = "/home2/user/u0100486/linux/doctorate/github/tracker_new/DATA/simulation/5000/"
 event_start = int(split_strings[2])
 event_end = int(split_strings[3])
 suppression_factor_index = int(split_strings[4])
@@ -87,6 +87,7 @@ if batch_mode:
     # Check for display environment (for headless mode on servers, for example)
     if os.getenv("DISPLAY") is None:
         plt.switch_backend('Agg')  # Use a non-interactive backend to silence display
+
 
 #######################################
 # Configuration
@@ -898,7 +899,7 @@ def kinematics_ransac(data_initial, fitted_models, useLineModelND, orl = None, e
                     start_point_initial[label] = start_point_full
                     end_point_initial[label] = end_point_full
                     endpts = extend_line_based_on_reference(start_point_beta, end_point_beta, start_point_full, end_point_full, intersection_point_beta, extra_start=float(Reference.RANGE_EXTEND.value), event_info=event_info)
-                    en = Energy(cut_data_charge, endpts, calibration_table)
+                    en = Energy(cut_data_charge, endpts,    )
                     new_position, fit_energy_, line_vector_start_3d, unit_vector_3d, line_length_2d, line_vector_end_3d, histogram_array_new = en.calculate_profiles()
                     if RunParameters.optimize_alpha.value:
                         ranges = {}
@@ -1985,7 +1986,7 @@ def track_passes_all_conditions(vertex, direction, range_):
 
 for energy in excitation_energies:
     for angle in cm_angles:
-        timing_file = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/timing_1000/timing_results_core_{energy}_{angle}_{event_start}_{event_end}.txt"
+        timing_file = f"/home2/user/u0100486/linux/doctorate/github/tracker_new/output/timing_1000/timing_results_core_{energy}_{angle}_{event_start}_{event_end}.txt"
         timing_results = []
         filename = path+"sim_5000_"+str(energy)+"mev_"+str(angle)+"cm.root"
         f = TFile(filename)
@@ -2102,7 +2103,7 @@ for energy in excitation_energies:
                         ransac_labels, fitted_models = iterative_ransac_with_suppression(data_array, max_lines=RansacParameters.MAX_LINES.value, residual_threshold=RansacParameters.RESIDUAL_THRESHOLD.value, n_iterations=RansacParameters.N_ITERATIONS.value, min_samples=10, suppression_factor=suppression_factor)
                     else:
                         start = time.perf_counter()
-                        ransac_labels, fitted_models = find_multiple_lines_ransac(data_array, max_lines=RansacParameters.MAX_LINES.value, residual_threshold=RansacParameters.RESIDUAL_THRESHOLD.value, n_iterations=RansacParameters.N_ITERATIONS.value)                        
+                        ransac_labels, fitted_models = find_multiple_lines_ransac(data_array, max_lines=RansacParameters.MAX_LINES.value, residual_threshold=RansacParameters.RESIDUAL_THRESHOLD.value, n_iterations=RansacParameters.N_ITERATIONS.value, min_samples=RansacParameters.MIN_SAMPLES.value, min_inliers=RansacParameters.MIN_INLIERS.value)                        
                         end = time.perf_counter()
                         elapsed = end - start
                         print(f"RANSAC computation time: {elapsed:.6f} seconds")
@@ -2258,7 +2259,7 @@ for energy in excitation_energies:
                         print('Multiplicity Distances')
                         print(cdist_dict)
 
-                    # np.save('/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/text_files/sim_10mev_5cm_event1323.npy',data_array)
+                    # np.save('/home2/user/u0100486/linux/doctorate/github/tracker_new/output/text_files/sim_10mev_5cm_event1323.npy',data_array)
 
                     gmm['components'] = n_comp
 

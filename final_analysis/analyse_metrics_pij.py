@@ -45,10 +45,11 @@ for ex in excitation_energies:
                 # Fill hist_tt histogram
                 if len(chain.gmm_tt_metric) == len(chain.gmm_tt_size1) == len(chain.gmm_tt_size2):
                     for i in range(len(chain.gmm_tt_metric)):
-                        if chain.gmm_tt_size1[i] > 10 or chain.gmm_tt_size2[i] > 10:
-                            hist_tt.Fill(chain.gmm_tt_metric[i])
-                            if chain.gmm_tt_metric[i] < 0.1:
-                                print(chain.eventid[0], ex,cm)
+                        if chain.gmm_tt_size1[i] > 5 and chain.gmm_tt_size2[i] > 5: 
+                            # if chain.gmm_tt_size1[i] > 5 and chain.gmm_tt_size2[i] > 5:                            
+                                hist_tt.Fill(chain.gmm_tt_metric[i])
+                                if chain.gmm_tt_metric[i] < 0.1:
+                                    print(chain.eventid[0], ex,cm)
 
 # Assuming hist_bb, hist_bt, and hist_tt are already defined as TH1 objects
 if hist_bb.Integral() > 0:

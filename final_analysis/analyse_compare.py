@@ -8,7 +8,7 @@ excitation_energies = [10]
 cm_angles = [1, 2, 3,4,5]
 # suppression_factor = range(32)
 suppression_factor = [1]
-base_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/root_files_3/"
+base_path = "/home2/user/u0100486/linux/doctorate/github/tracker_new/output/root_files_check_min_samples/"
 volume_min, volume_max = 10, 246
 beam_zone_min, beam_zone_max = 120, 134
 hist_range = (-20, 20)
@@ -90,7 +90,7 @@ for energy in excitation_energies:
             ransac_diffs = []
             gmm_diffs = []
 
-            pattern = os.path.join(base_path, f"comp_sim_5000_{energy}mev_{cm}cm_*_*_1.root")
+            pattern = os.path.join(base_path, f"check_sim_5000_{energy}mev_{cm}cm_*_*_1.root")
             file_list = glob.glob(pattern)
 
             for filepath in file_list:
@@ -164,7 +164,7 @@ for energy in excitation_energies:
 
 
             canvas.Update()
-            canvas.SaveAs(f"his_{energy}MeV_{cm}cm_{suppress}su_metrice1e2.png")
+            canvas.SaveAs(f"his_{energy}MeV_{cm}cm_{suppress}su_min_samples.png")
             canvas.WaitPrimitive()
 
 # np.save('list_e1e2metric.npy',np.array(list_values))

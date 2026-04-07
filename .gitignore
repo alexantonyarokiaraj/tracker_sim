@@ -1,7 +1,29 @@
-output/
-access_token
+# Python cache
+__pycache__/
+*.pyc
+
+# Data / outputs
+*.root
+*.png
+*.log
+
+# Your project-specific
+schedules/
 histograms/
 DATA/
+images/
+output/
+
+# Environment
+tracker_env/
+
+# Secrets
+access_token
+10mev3cm.sh
+schedule.txt
 schedule_1.txt
 schedule_2.txt
 schedule_3.txt
+schedule_4.txt
+schedule_5.txt
+tracks_copy.py
