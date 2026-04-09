@@ -20,7 +20,7 @@ counter = 0
 # Loop through excitation energy and CM combinations
 for ex in excitation_energies:
     for cm in cm_values:
-        file_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/multiplicity/single/"
+        file_path = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/multiplicity/single/"
         file_pattern = f"mul_sim_5000_{ex}mev_{cm}cm_*.root"
         file_list = glob.glob(file_path + file_pattern)
 

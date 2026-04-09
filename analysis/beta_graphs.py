@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-data = np.load('/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/text_files/gamma_array_new.npy')
+data = np.load('/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/text_files/gamma_array_new.npy')
 print(data)
 
 # Extract unique values from column 1 (cm angle)

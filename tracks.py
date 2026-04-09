@@ -27,12 +27,14 @@ from itertools import chain
 from merger import calculate_cluster_metrics
 import json
 import os
+import traceback
 from sklearn.metrics import adjusted_rand_score
 from write import create_tree_and_branches, fill_event_data_to_tree
 import pickle
 from enum import Enum
 from sklearn.neighbors import NearestNeighbors
 from sklearn.cluster import DBSCAN
+import hdbscan
 from kneed import KneeLocator
 from regularize import Regularize
 from libraries import DataArray, RunParameters, VolumeBoundaries, SCAN, Optimize, FileNames, Reference, ConversionFactors, RansacParameters
@@ -61,7 +63,7 @@ input_string = arguments[1]
 split_strings = input_string.split('@')
 excitation_energies=[split_strings[0]]
 cm_angles=[split_strings[1]]
-path = "/home2/user/u0100486/linux/doctorate/github/tracker_new/DATA/simulation/5000/"
+path = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/DATA/simulation/5000/"
 event_start = int(split_strings[2])
 event_end = int(split_strings[3])
 suppression_factor_index = int(split_strings[4])
@@ -798,8 +800,8 @@ def kinematics_ransac(data_initial, fitted_models, useLineModelND, orl = None, e
         cluster_data = data[data[:, DataArray.ransac_labels.value] == label]        
 
         # Check if the cluster size is greater than 10
-        if cluster_data.shape[0] <= 10:
-            continue  # Skip this cluster if it has 10 or fewer points
+        if cluster_data.shape[0] < 10:
+            continue  # Skip this cluster if it has fewer than 10 points
 
         # Calculate the mean y of the cluster
         mean_y = np.mean(cluster_data[:, DataArray.Y.value])
@@ -899,7 +901,7 @@ def kinematics_ransac(data_initial, fitted_models, useLineModelND, orl = None, e
                     start_point_initial[label] = start_point_full
                     end_point_initial[label] = end_point_full
                     endpts = extend_line_based_on_reference(start_point_beta, end_point_beta, start_point_full, end_point_full, intersection_point_beta, extra_start=float(Reference.RANGE_EXTEND.value), event_info=event_info)
-                    en = Energy(cut_data_charge, endpts,    )
+                    en = Energy(cut_data_charge, endpts, calibration_table)
                     new_position, fit_energy_, line_vector_start_3d, unit_vector_3d, line_length_2d, line_vector_end_3d, histogram_array_new = en.calculate_profiles()
                     if RunParameters.optimize_alpha.value:
                         ranges = {}
@@ -1729,9 +1731,13 @@ def dbcluster(data_array, N_PROC, nn_neighbor, nn_radius, db_min_samples, sensit
             print('EPSILON BELOW THRESHOLD, USING DEFAULT', eps_mode_, epsilon_)
             epsilon_ = eps_mode_
 
-        # DBSCAN clustering
-        model = DBSCAN(eps=epsilon_, min_samples=db_min_samples, n_jobs=N_PROC)
-        labels_ = model.fit_predict(extractedData)
+        # Clustering: HDBSCAN or DBSCAN depending on RunParameters
+        if RunParameters.use_hdbscan.value:
+            model = hdbscan.HDBSCAN(min_samples=SCAN.HDBSCAN_MIN_SAMPLES.value, min_cluster_size=SCAN.HDBSCAN_MIN_CLUSTER_SIZE.value, core_dist_n_jobs=N_PROC)
+            labels_ = model.fit_predict(extractedData)
+        else:
+            model = DBSCAN(eps=epsilon_, min_samples=db_min_samples, n_jobs=N_PROC)
+            labels_ = model.fit_predict(extractedData)
         return labels_, valid_cluster, epsilon_
 
     except ValueError as ve:
@@ -1986,7 +1992,7 @@ def track_passes_all_conditions(vertex, direction, range_):
 
 for energy in excitation_energies:
     for angle in cm_angles:
-        timing_file = f"/home2/user/u0100486/linux/doctorate/github/tracker_new/output/timing_1000/timing_results_core_{energy}_{angle}_{event_start}_{event_end}.txt"
+        timing_file = f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/timing_1000/timing_results_core_{energy}_{angle}_{event_start}_{event_end}.txt"
         timing_results = []
         filename = path+"sim_5000_"+str(energy)+"mev_"+str(angle)+"cm.root"
         f = TFile(filename)
@@ -2259,7 +2265,7 @@ for energy in excitation_energies:
                         print('Multiplicity Distances')
                         print(cdist_dict)
 
-                    # np.save('/home2/user/u0100486/linux/doctorate/github/tracker_new/output/text_files/sim_10mev_5cm_event1323.npy',data_array)
+                    # np.save('/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/text_files/sim_10mev_5cm_event1323.npy',data_array)
 
                     gmm['components'] = n_comp
 
@@ -2378,7 +2384,8 @@ for energy in excitation_energies:
                         break
             except Exception as e:
                 print("Exception Encountered", e)
-                exception_events.append(entries.data.event)
+                traceback.print_exc()
+                exception_events.append((entries.data.event, str(e), traceback.format_exc()))
                 continue
         print('Exited the file', exception_events)
         # with open(timing_file, "a") as f1:
@@ -2389,9 +2396,13 @@ for energy in excitation_energies:
             result["tree"].Write()
             root_file.Close()
             exceptions_output_path = RunParameters.exc_file_name.value
-            exceptions_output_file = exceptions_output_path+RunParameters.tag.value+"_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+"_"+str(suppression_factor_index)+".npy"
+            exc_base = exceptions_output_path+RunParameters.tag.value+"_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+"_"+str(suppression_factor_index)
+            exceptions_output_file = exc_base + ".npy"
             print(exceptions_output_file)
-            np.save(exceptions_output_file, np.array(exception_events))
+            np.save(exceptions_output_file, np.array([ev for ev, msg, tb in exception_events]))
+            with open(exc_base + "_reasons.txt", "w") as exc_f:
+                for ev, msg, tb in exception_events:
+                    exc_f.write(f"Event {ev}: {msg}\n{tb}\n")
         # if RunParameters.calculate_geometric_efficiency.value:
         #     np.save(str(energy)+"mev_"+str(angle)+"cm"+".npy",np.array(arr_event))
         # Define histogram parameters

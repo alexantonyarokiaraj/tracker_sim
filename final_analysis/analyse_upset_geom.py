@@ -15,7 +15,7 @@ import math
 # ==== Settings ====
 excitation_energies = [10]
 cm_angles = [4]
-base_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/gamma_2_run/"
+base_path = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/final/gamma_2_run/"
 volume_min, volume_max = 10, 246
 beam_zone_min, beam_zone_max = 120, 134
 hist_range = (-20, 20)

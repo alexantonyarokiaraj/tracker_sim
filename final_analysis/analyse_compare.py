@@ -5,10 +5,10 @@ import os
 
 # Settings
 excitation_energies = [10]
-cm_angles = [1, 2, 3,4,5]
+cm_angles = [1,2,3,4,5]
 # suppression_factor = range(32)
 suppression_factor = [1]
-base_path = "/home2/user/u0100486/linux/doctorate/github/tracker_new/output/root_files_check_min_samples/"
+base_path = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/root_files_dbscan/"
 volume_min, volume_max = 10, 246
 beam_zone_min, beam_zone_max = 120, 134
 hist_range = (-20, 20)
@@ -23,7 +23,7 @@ def is_outside_beam_zone(y):
 def extract_1track_vector(vec):
     return [vec[0], vec[1], vec[2]]
 
-def process_file(filepath, branch_angle, branch_phi, branch_start, branch_end, branch_inter, input_angle, event_status=None):
+def process_file(filepath, branch_angle, branch_phi, branch_start, branch_end, branch_inter, input_angle, event_status=None, rejection_counts=None):
     diff_angles = []
     event_ids = []
 
@@ -46,11 +46,16 @@ def process_file(filepath, branch_angle, branch_phi, branch_start, branch_end, b
         sim_angle = elab[0]
 
         if len(reco_angles) != 1 or len(phi_angles) != 1:
+            if rejection_counts is not None:
+                key = 'not_1_track_0' if len(reco_angles) == 0 else 'not_1_track_multi'
+                rejection_counts[key] = rejection_counts.get(key, 0) + 1
             continue
 
         phi = phi_angles[0]
 
         if (70 <= abs(phi) <= 110):
+            if rejection_counts is not None:
+                rejection_counts['phi_cut'] = rejection_counts.get('phi_cut', 0) + 1
             continue  # discard based on phi angle
 
         start = extract_1track_vector(getattr(event, branch_start))
@@ -58,9 +63,13 @@ def process_file(filepath, branch_angle, branch_phi, branch_start, branch_end, b
         inter = extract_1track_vector(getattr(event, branch_inter))
 
         if not (is_inside_volume(start) and is_inside_volume(end) and is_inside_volume(inter)):
+            if rejection_counts is not None:
+                rejection_counts['outside_volume'] = rejection_counts.get('outside_volume', 0) + 1
             continue
 
         if not is_outside_beam_zone(end[1]):
+            if rejection_counts is not None:
+                rejection_counts['inside_beam_zone'] = rejection_counts.get('inside_beam_zone', 0) + 1
             continue
 
         angle_diff = sim_angle - reco_angles[0]
@@ -68,6 +77,9 @@ def process_file(filepath, branch_angle, branch_phi, branch_start, branch_end, b
         if hist_range[0] < angle_diff < hist_range[1]:
             diff_angles.append(angle_diff)
             event_ids.append(eid[0])
+        else:
+            if rejection_counts is not None:
+                rejection_counts['angle_out_of_range'] = rejection_counts.get('angle_out_of_range', 0) + 1
             # if event_status is not None:
             #     if event_status.get(int(eid[0]), 0) == 0:
             #         print('REJECTED TRACK', int(eid[0]))
@@ -89,15 +101,26 @@ for energy in excitation_energies:
 
             ransac_diffs = []
             gmm_diffs = []
+            ransac_rejections_total = {}
+            gmm_rejections_total = {}
 
-            pattern = os.path.join(base_path, f"check_sim_5000_{energy}mev_{cm}cm_*_*_1.root")
+            pattern = os.path.join(base_path, f"final_sim_5000_{energy}mev_{cm}cm_*_*_1.root")
             file_list = glob.glob(pattern)
 
             for filepath in file_list:
+                ransac_rej = {}
+                gmm_rej = {}
                 ransac_diff, ransac_ids = process_file(filepath, "ransac_angles", "ransac_phi_angles",
-                                                    "ransac_start", "ransac_end", "ransac_inter", "Elab")
+                                                    "ransac_start", "ransac_end", "ransac_inter", "Elab",
+                                                    rejection_counts=ransac_rej)
                 gmm_diff, gmm_ids = process_file(filepath, "gmm_angles", "gmm_phi_angles",
-                                                "gmm_start", "gmm_end", "gmm_inter", "Elab")
+                                                "gmm_start", "gmm_end", "gmm_inter", "Elab",
+                                                rejection_counts=gmm_rej)
+
+                for k, v in ransac_rej.items():
+                    ransac_rejections_total[k] = ransac_rejections_total.get(k, 0) + v
+                for k, v in gmm_rej.items():
+                    gmm_rejections_total[k] = gmm_rejections_total.get(k, 0) + v
 
                 ransac_diffs += ransac_diff
                 gmm_diffs += gmm_diff
@@ -113,6 +136,21 @@ for energy in excitation_energies:
                 # Print RANSAC-only events
                 for eventid in ransac_only_ids:
                     print(f"EventID {eventid} is present in RANSAC but not in GMM for file: {filepath}")
+
+            # Print rejection summary
+            all_keys = sorted(set(list(ransac_rejections_total.keys()) + list(gmm_rejections_total.keys())))
+            print(f"\n{'='*60}")
+            print(f"REJECTION SUMMARY  {energy}MeV  {cm}cm")
+            print(f"{'='*60}")
+            print(f"{'Filter':<30} {'RANSAC':>10} {'GMM':>10} {'Diff':>10}")
+            print(f"{'-'*60}")
+            for k in all_keys:
+                r = ransac_rejections_total.get(k, 0)
+                g = gmm_rejections_total.get(k, 0)
+                print(f"{k:<30} {r:>10} {g:>10} {r-g:>+10}")
+            print(f"{'-'*60}")
+            print(f"{'ACCEPTED':<30} {len(ransac_diffs):>10} {len(gmm_diffs):>10} {len(ransac_diffs)-len(gmm_diffs):>+10}")
+            print(f"{'='*60}\n")
 
             # Create canvas and histograms
             canvas = ROOT.TCanvas(f"c_{energy}_{cm}", f"Energy {energy} MeV, CM {cm}°", 1200, 600)

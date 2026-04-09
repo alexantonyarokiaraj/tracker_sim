@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 # Settings
 excitation_energies = [10]
 cm_angles = [1, 2, 3, 4, 5]
-base_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/gamma_2_run/"
+base_path = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/final/gamma_2_run/"
 volume_min, volume_max = 10, 246
 beam_zone_min, beam_zone_max = 120, 134
 hist_range = (-20, 20)
@@ -127,4 +127,4 @@ for energy in excitation_energies:
 
 # Save after processing all energy/angle combinations
 array_save = np.array(array_save_list)
-np.save("/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/final/gamma_2_run/arrays/angle_diff_resp.npy", array_save)
+np.save("/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/final/gamma_2_run/arrays/angle_diff_resp.npy", array_save)

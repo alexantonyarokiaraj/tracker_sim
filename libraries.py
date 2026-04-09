@@ -38,16 +38,17 @@ class RunParameters(Enum):
     optimize_cdist = False
     optimize_pij = False
     optimize_multiplicity = False
-    save_root_file = "/home2/user/u0100486/linux/doctorate/github/tracker_new/output/root_files_check_min_samples/"
-    save_root_fig = "/home2/user/u0100486/linux/doctorate/github/tracker_new/images/mul_metrice1e2no/"
-    tag = "check"
-    exc_file_name = "/home2/user/u0100486/linux/doctorate/github/tracker_new/output/root_files_check_min_samples/"
-    range_lookup_table = "/home2/user/u0100486/linux/doctorate/github/tracker_new/LookupTable_e780_58Ni_68Ni_Alex.xlsx"
+    save_root_file = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/root_files_hdbscan/"
+    save_root_fig = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/images/mul_metrice1e2no/"
+    tag = "final"
+    exc_file_name = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/root_files_hdbscan/"
+    range_lookup_table = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/LookupTable_e780_58Ni_68Ni_Alex.xlsx"
     range_energy_conversion_sheet = "range_energy_he_he_cf4_mixed"
     use_cij_ransac = True
     use_beta_fraction = True
     calculate_geometric_efficiency = True
     use_iterative_ransac = False
+    use_hdbscan = True  # True = HDBSCAN, False = DBSCAN
 
 class VolumeBoundaries(Enum):
     VOLUME_MIN = 10
@@ -64,6 +65,8 @@ class SCAN(Enum):
     SENSITIVITY = 3
     EPS_THRESHOLD = 4.0
     EPS_MODE = 7.0
+    HDBSCAN_MIN_SAMPLES = 6
+    HDBSCAN_MIN_CLUSTER_SIZE = 10
 
 class Optimize(Enum):
     ALPHA = 28.5/100 #percentage
@@ -120,5 +123,5 @@ class RansacParameters(Enum):
     MAX_LINES = 10
     RESIDUAL_THRESHOLD = 5.0
     N_ITERATIONS = 5000
-    MIN_SAMPLES = 2
+    MIN_SAMPLES = 10
     MIN_INLIERS = 10

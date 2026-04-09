@@ -9,7 +9,7 @@ files = []
 # Find files matching the pattern
 for ex in exc_energy:
     for cm in cm_angle:
-        file_pattern = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/reg/metrics_sim_5000_{ex}mev_{cm}cm_*.root"
+        file_pattern = f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/reg/metrics_sim_5000_{ex}mev_{cm}cm_*.root"
         matched_files = glob.glob(file_pattern)
         files.extend(matched_files)
 

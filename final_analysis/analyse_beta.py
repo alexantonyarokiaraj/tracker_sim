@@ -7,7 +7,7 @@ from collections import defaultdict
 # Settings
 excitation_energies = [10]
 cm_angles = [3]
-base_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/root_files/testing/"
+base_path = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/root_files/testing/"
 volume_min, volume_max = 10, 246
 beam_zone_min, beam_zone_max = 120, 134
 hist_range = (-20, 20)
@@ -142,13 +142,13 @@ for energy in excitation_energies:
         legend.Draw()
 
         canvas.Update()
-        # canvas.SaveAs(f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta/histograms/sigma_vs_beta_{energy}MeV_{cm}cm.png")
+        # canvas.SaveAs(f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/beta/histograms/sigma_vs_beta_{energy}MeV_{cm}cm.png")
         # canvas.WaitPrimitive()
 
     # Convert and save the combined data
     gmm_array = np.array(all_gmm_data)
 
-    output_array_dir = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/root_files/testing/"
+    output_array_dir = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/root_files/testing/"
     os.makedirs(output_array_dir, exist_ok=True)
 
     np.save(os.path.join(output_array_dir, f"gmm_sigma_vs_beta_all_angles_{energy}MeV.npy"), gmm_array)

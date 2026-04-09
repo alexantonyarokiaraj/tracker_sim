@@ -7,7 +7,7 @@ import glob
 excitation_energies = [10]
 cm_angles = [5]
 suppression_factor = [1]
-base_path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/root_files_1/"
+base_path = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/root_files_1/"
 volume_min, volume_max = 10, 246
 beam_zone_min, beam_zone_max = 120, 134
 hist_range = (-20, 20)

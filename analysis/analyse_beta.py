@@ -13,22 +13,22 @@ for energy in excitation_energies:
     beta_numpy_array = []
     for cm_angle in cm_angles:
         # Construct the ROOT file names dynamically for both ranges
-        file_1 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_1_312.root"
-        file_2 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_313_624.root"
-        file_3 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_625_936.root"
-        file_4 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_937_1248.root"
-        file_5 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_1249_1560.root"
-        file_6 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_1561_1872.root"
-        file_7 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_1873_2184.root"
-        file_8 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_2185_2496.root"
-        file_9 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_2497_2808.root"
-        file_10 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_2809_3120.root"
-        file_11 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_3121_3432.root"
-        file_12 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_3433_3744.root"
-        file_13 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_3745_4056.root"
-        file_14 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_4057_4368.root"
-        file_15 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_4369_4680.root"
-        file_16 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_4681_5000.root"
+        file_1 = f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_1_312.root"
+        file_2 = f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_313_624.root"
+        file_3 = f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_625_936.root"
+        file_4 = f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_937_1248.root"
+        file_5 = f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_1249_1560.root"
+        file_6 = f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_1561_1872.root"
+        file_7 = f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_1873_2184.root"
+        file_8 = f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_2185_2496.root"
+        file_9 = f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_2497_2808.root"
+        file_10 = f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_2809_3120.root"
+        file_11 = f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_3121_3432.root"
+        file_12 = f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_3433_3744.root"
+        file_13 = f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_3745_4056.root"
+        file_14 = f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_4057_4368.root"
+        file_15 = f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_4369_4680.root"
+        file_16 = f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/beta_single_new/beta_sim_5000_{energy}mev_{cm_angle}cm_4681_5000.root"
 
         # Define histograms
         h_verX = ROOT.TH1F("h_verX", "verX Distribution;verX;Counts", 256, 0, 256)
@@ -256,4 +256,4 @@ for energy in excitation_energies:
         # canvas.Update()
         # canvas.Draw()
         # canvas.WaitPrimitive()
-    np.save('/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/text_files/beta_array_new.npy', np.array(beta_numpy_array))
+    np.save('/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/text_files/beta_array_new.npy', np.array(beta_numpy_array))

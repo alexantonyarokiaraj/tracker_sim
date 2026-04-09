@@ -20,9 +20,9 @@ for energy in excitation_energies:
                                    360, -180, 180) # Y-axis: gmm_min_angle
 
         file_paths = [
-            f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/gamma/gamma_sim_5000_{energy}mev_{cm_angle}cm_1_1600.root",
-            f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/gamma/gamma_sim_5000_{energy}mev_{cm_angle}cm_1601_3200.root",
-            f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/gamma/gamma_sim_5000_{energy}mev_{cm_angle}cm_3201_5000.root"
+            f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/gamma/gamma_sim_5000_{energy}mev_{cm_angle}cm_1_1600.root",
+            f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/gamma/gamma_sim_5000_{energy}mev_{cm_angle}cm_1601_3200.root",
+            f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/gamma/gamma_sim_5000_{energy}mev_{cm_angle}cm_3201_5000.root"
         ]
 
         for file_path in file_paths:

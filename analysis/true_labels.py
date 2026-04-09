@@ -31,7 +31,7 @@ from enum import Enum
 from sklearn.neighbors import NearestNeighbors
 from sklearn.cluster import DBSCAN
 from kneed import KneeLocator
-from tracker_new.libraries import DataArray
+from tracker_sim.libraries import DataArray
 np.random.seed(42)
 from collections import defaultdict
 
@@ -46,7 +46,7 @@ input_string = arguments[1]
 split_strings = input_string.split('@')
 excitation_energies=[split_strings[0]]
 cm_angles=[split_strings[1]]
-path = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/DATA/simulation/5000/"
+path = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/DATA/simulation/5000/"
 plots = False
 sim = True
 debug=False
@@ -83,11 +83,11 @@ beam_center_peak_find_high = 14000  # units[ns]
 sig_beam_center = 70.0  # units [ns]
 time_per_sample = 0.08  # units [us]
 drift_velocity_volume = 1.16  # units [cm/us]
-table = np.loadtxt("/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/LT_GANIL_NewCF_marine.dat")
+table = np.loadtxt("/home2/user/u0100486/linux/doctorate/github/tracker_sim/LT_GANIL_NewCF_marine.dat")
 z_conversion_factor = drift_velocity_volume*(10.0/1000.0)
 x_conversion_factor = 2.0  # units[mm]
 y_conversion_factor = 2.0  # units[mm]
-missing_pads_info = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/HitResponses.dat"
+missing_pads_info = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/HitResponses.dat"
 missed_pads = np.loadtxt(missing_pads_info)
 x_pos_raw = missed_pads[:, 0]
 y_pos_raw = missed_pads[:, 1]
@@ -1349,7 +1349,7 @@ for energy in excitation_energies:
         print('Reading', entry ,'entries from file', filename)
 
         if save_to_root:
-            path_output = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/"
+            path_output = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/"
             root_file = root.TFile(path_output+"recon_sim_5000_"+str(energy)+"mev_"+str(angle)+"cm_"+str(event_start)+"_"+str(event_end)+".root", "UPDATE")
             print(root_file)
             result = create_tree_and_branches("events")

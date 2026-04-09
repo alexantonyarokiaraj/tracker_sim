@@ -3,7 +3,7 @@ import os
 import numpy as np
 
 # Directory containing the ROOT files
-file_dir = "/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/responsibilities/"
+file_dir = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/responsibilities/"
 
 # Define excitation energies and cm angles
 excitation_energies = [0, 5, 10, 15, 20, 25, 30]
@@ -47,7 +47,7 @@ for ex in excitation_energies:
         root_file.Close()
 
 # Save histograms to an output ROOT file
-output_file = ROOT.TFile("/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/histograms/metric_histograms.root", "RECREATE")
+output_file = ROOT.TFile("/home2/user/u0100486/linux/doctorate/github/tracker_sim/histograms/metric_histograms.root", "RECREATE")
 h_bb_metric.Write()
 h_bt_metric.Write()
 h_tt_metric.Write()

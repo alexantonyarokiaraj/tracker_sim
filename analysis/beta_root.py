@@ -2,7 +2,7 @@ import numpy as np
 import ROOT
 
 # Sample data (replace this with your actual NumPy array)
-data = np.load('/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/text_files/beta_array_new.npy')
+data = np.load('/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/text_files/beta_array_new.npy')
 # Extract unique values from column 1 (cm angle)
 unique_angles = np.unique(data[:, 0])
 

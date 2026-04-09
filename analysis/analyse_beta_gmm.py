@@ -21,8 +21,8 @@ for cm_angle in cm_angles:
     mean_elabs_arr = []
     for energy in excitation_energies:
         # Construct the ROOT file names dynamically for both ranges
-        file_1 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta/beta_sim_5000_{energy}mev_{cm_angle}cm_1_2500.root"
-        file_2 = f"/mnt/ksf2/H1/user/u0100486/linux/doctorate/github/tracker_new/output/optimize/beta/beta_sim_5000_{energy}mev_{cm_angle}cm_2501_5000.root"
+        file_1 = f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/beta/beta_sim_5000_{energy}mev_{cm_angle}cm_1_2500.root"
+        file_2 = f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/beta/beta_sim_5000_{energy}mev_{cm_angle}cm_2501_5000.root"
 
         print(f"Processing files: {file_1} and {file_2}")
 
