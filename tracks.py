@@ -1749,7 +1749,7 @@ def dbcluster(data_array, N_PROC, nn_neighbor, nn_radius, db_min_samples, sensit
     return np.array([-1, -1]), False, epsilon_
 
 # Function to do GMM clustering for every dbscan cluster
-def hierarchical_clustering_with_responsibilities(data_array, max_components=10):
+def hierarchical_clustering_with_responsibilities(data_array, max_components=10, precomputed_labels=None):
     """
     Perform DBSCAN clustering and then apply GMM clustering to each DBSCAN cluster,
     computing the responsibility array for all data points.
@@ -1757,28 +1757,34 @@ def hierarchical_clustering_with_responsibilities(data_array, max_components=10)
     Parameters:
     - data_array (np.ndarray): Input data array with at least 3 columns (x, y, z).
     - max_components (int): Maximum number of GMM components to evaluate for BIC.
+    - precomputed_labels (np.ndarray, optional): Pre-computed cluster labels (noise already filtered).
 
     Returns:
     - final_labels (np.ndarray): Combined labels for the entire dataset after hierarchical clustering.
     - dbscan_labels (np.ndarray): Labels from the DBSCAN clustering.
     - final_responsibilities (np.ndarray): Responsibility matrix of shape (n_points, total_gmm_clusters).
     """
-    # Step 1: Perform DBSCAN clustering
-    start_dbscan = time.perf_counter()
-    dbscan_labels, valid_cluster, epsilon_ = dbcluster(
-        data_array,
-        SCAN.N_PROC.value,
-        SCAN.NN_NEIGHBOR.value,
-        SCAN.NN_RADIUS.value,
-        SCAN.DB_MIN_SAMPLES.value,
-        SCAN.SENSITIVITY.value,
-        SCAN.EPS_THRESHOLD.value,
-        SCAN.EPS_MODE.value
-    )
-    end_dbscan = time.perf_counter()
-    elapsed_dbscan = end_dbscan - start_dbscan
-    print(f"DBSCAN computation time: {elapsed_dbscan:.6f} seconds")
-
+    # Step 1: Use precomputed labels or perform DBSCAN clustering
+    if precomputed_labels is not None:
+        dbscan_labels = precomputed_labels
+        valid_cluster = True
+        elapsed_dbscan = 0.0
+        print("Using precomputed cluster labels (noise already filtered).")
+    else:
+        start_dbscan = time.perf_counter()
+        dbscan_labels, valid_cluster, epsilon_ = dbcluster(
+            data_array,
+            SCAN.N_PROC.value,
+            SCAN.NN_NEIGHBOR.value,
+            SCAN.NN_RADIUS.value,
+            SCAN.DB_MIN_SAMPLES.value,
+            SCAN.SENSITIVITY.value,
+            SCAN.EPS_THRESHOLD.value,
+            SCAN.EPS_MODE.value
+        )
+        end_dbscan = time.perf_counter()
+        elapsed_dbscan = end_dbscan - start_dbscan
+        print(f"DBSCAN computation time: {elapsed_dbscan:.6f} seconds")
 
     if not valid_cluster:
         print("DBSCAN clustering failed.")
@@ -2103,6 +2109,22 @@ for energy in excitation_energies:
                     if debug:
                         print(data_array)
 
+                    # Run initial clustering (HDBSCAN or DBSCAN) and filter noise
+                    initial_labels, valid_cluster, epsilon_ = dbcluster(
+                        data_array, SCAN.N_PROC.value, SCAN.NN_NEIGHBOR.value,
+                        SCAN.NN_RADIUS.value, SCAN.DB_MIN_SAMPLES.value,
+                        SCAN.SENSITIVITY.value, SCAN.EPS_THRESHOLD.value,
+                        SCAN.EPS_MODE.value
+                    )
+                    if not valid_cluster:
+                        raise ValueError("Initial clustering failed.")
+
+                    non_noise_mask = initial_labels != -1
+                    n_noise = np.sum(~non_noise_mask)
+                    data_array = data_array[non_noise_mask]
+                    initial_labels = initial_labels[non_noise_mask]
+                    print(f"Noise filtering: {n_noise} points removed, {len(data_array)} remaining")
+
                     # Get Predicted Labels from RANSAC
                     # data_array = [0-x,1-y,2-z,3-q,4-track_ID, 5-true_labels_sim, 6-true_labels_hard, 7-ransac labels]
                     if RunParameters.use_iterative_ransac.value:                        
@@ -2120,7 +2142,7 @@ for energy in excitation_energies:
 
                     #Get Prediced Labels from GMM
                     # data_array = [0-x,1-y,2-z,3-q,4-track_ID, 5-true_labels_sim, 6-true_labels_hard, 7-ransac labels, 8-gmm labels, 9-dbscan labels, 10 - merge labels]
-                    gmm_labels, n_comp, responsibilities, dbscan_labels, elapsed_dbscan, elapsed_gmm = hierarchical_clustering_with_responsibilities(data_array, max_components=10)
+                    gmm_labels, n_comp, responsibilities, dbscan_labels, elapsed_dbscan, elapsed_gmm = hierarchical_clustering_with_responsibilities(data_array, max_components=10, precomputed_labels=initial_labels)
 
                     data_array = np.column_stack((data_array, gmm_labels))
                     data_array = np.column_stack((data_array, dbscan_labels))

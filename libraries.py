@@ -38,10 +38,10 @@ class RunParameters(Enum):
     optimize_cdist = False
     optimize_pij = False
     optimize_multiplicity = False
-    save_root_file = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/root_files_hdbscan/"
+    save_root_file = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/root_files_hdbscan_filtered/"
     save_root_fig = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/images/mul_metrice1e2no/"
     tag = "final"
-    exc_file_name = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/root_files_hdbscan/"
+    exc_file_name = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/root_files_hdbscan_filtered/"
     range_lookup_table = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/LookupTable_e780_58Ni_68Ni_Alex.xlsx"
     range_energy_conversion_sheet = "range_energy_he_he_cf4_mixed"
     use_cij_ransac = True
