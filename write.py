@@ -35,6 +35,8 @@ def create_tree_and_branches(tree_name):
     ransac_inter = ROOT.std.vector("float")()
     ransac_start = ROOT.std.vector("float")()
     ransac_end = ROOT.std.vector("float")()
+    ransac_vertex_dx = ROOT.std.vector("float")()
+    ransac_vertex_dist3d = ROOT.std.vector("float")()
     gmm_comp = ROOT.std.vector("int")()
     gmm_beam_comp = ROOT.std.vector("int")()
     gmm_track_comp = ROOT.std.vector("int")()
@@ -63,6 +65,8 @@ def create_tree_and_branches(tree_name):
     gmm_inter = ROOT.std.vector("float")()
     gmm_start = ROOT.std.vector("float")()
     gmm_end = ROOT.std.vector("float")()
+    gmm_vertex_dx = ROOT.std.vector("float")()
+    gmm_vertex_dist3d = ROOT.std.vector("float")()
     gmm_resp = ROOT.std.vector("float")()
     gmm_resp_angle = ROOT.std.vector("float")()
     gmm_min_res = ROOT.std.vector("float")()
@@ -122,6 +126,8 @@ def create_tree_and_branches(tree_name):
     tree.Branch("ransac_inter", ransac_inter)
     tree.Branch("ransac_start", ransac_start)
     tree.Branch("ransac_end", ransac_end)
+    tree.Branch("ransac_vertex_dx", ransac_vertex_dx)
+    tree.Branch("ransac_vertex_dist3d", ransac_vertex_dist3d)
     tree.Branch("gmm_comp", gmm_comp)
     tree.Branch("gmm_beam_comp", gmm_beam_comp)
     tree.Branch("gmm_track_comp", gmm_track_comp)
@@ -150,6 +156,8 @@ def create_tree_and_branches(tree_name):
     tree.Branch("gmm_inter", gmm_inter)
     tree.Branch("gmm_start", gmm_start)
     tree.Branch("gmm_end", gmm_end)
+    tree.Branch("gmm_vertex_dx", gmm_vertex_dx)
+    tree.Branch("gmm_vertex_dist3d", gmm_vertex_dist3d)
     tree.Branch("gmm_resp", gmm_resp)
     tree.Branch("gmm_resp_angle", gmm_resp_angle)
     tree.Branch("gmm_min_res", gmm_min_res)
@@ -208,6 +216,8 @@ def create_tree_and_branches(tree_name):
         "ransac_inter": ransac_inter,
         "ransac_start": ransac_start,
         "ransac_end": ransac_end,
+        "ransac_vertex_dx": ransac_vertex_dx,
+        "ransac_vertex_dist3d": ransac_vertex_dist3d,
         "gmm_comp": gmm_comp,
         "gmm_beam_comp": gmm_beam_comp,
         "gmm_track_comp": gmm_track_comp,
@@ -236,6 +246,8 @@ def create_tree_and_branches(tree_name):
         "gmm_inter": gmm_inter,
         "gmm_start": gmm_start,
         "gmm_end": gmm_end,
+        "gmm_vertex_dx": gmm_vertex_dx,
+        "gmm_vertex_dist3d": gmm_vertex_dist3d,
         "gmm_resp": gmm_resp,
         "gmm_resp_angle": gmm_resp_angle,
         "gmm_min_res": gmm_min_res,
@@ -297,6 +309,8 @@ def fill_event_data_to_tree(result, event_data):
     ransac_inter = result["ransac_inter"]
     ransac_start = result["ransac_start"]
     ransac_end = result["ransac_end"]
+    ransac_vertex_dx = result["ransac_vertex_dx"]
+    ransac_vertex_dist3d = result["ransac_vertex_dist3d"]
     gmm_comp = result["gmm_comp"]
     gmm_beam_comp = result["gmm_beam_comp"]
     gmm_track_comp = result["gmm_track_comp"]
@@ -325,6 +339,8 @@ def fill_event_data_to_tree(result, event_data):
     gmm_inter = result["gmm_inter"]
     gmm_start = result["gmm_start"]
     gmm_end = result["gmm_end"]
+    gmm_vertex_dx = result["gmm_vertex_dx"]
+    gmm_vertex_dist3d = result["gmm_vertex_dist3d"]
     gmm_resp = result["gmm_resp"]
     gmm_resp_angle = result["gmm_resp_angle"]
     gmm_min_res = result["gmm_min_res"]
@@ -382,6 +398,8 @@ def fill_event_data_to_tree(result, event_data):
     ransac_inter.clear()
     ransac_start.clear()
     ransac_end.clear()
+    ransac_vertex_dx.clear()
+    ransac_vertex_dist3d.clear()
     gmm_comp.clear()
     gmm_beam_comp.clear()
     gmm_track_comp.clear()
@@ -410,6 +428,8 @@ def fill_event_data_to_tree(result, event_data):
     gmm_inter.clear()
     gmm_start.clear()
     gmm_end.clear()
+    gmm_vertex_dx.clear()
+    gmm_vertex_dist3d.clear()
     gmm_resp.clear()
     gmm_resp_angle.clear()
     gmm_min_res.clear()
@@ -493,6 +513,12 @@ def fill_event_data_to_tree(result, event_data):
         for element in end_point:
             ransac_end.push_back(element)
 
+    for dx in event_data.ransac["vertex_dx"].values():
+        ransac_vertex_dx.push_back(dx)
+
+    for dist3d in event_data.ransac["vertex_dist3d"].values():
+        ransac_vertex_dist3d.push_back(dist3d)
+
     for inter in event_data.gmm["intersections"].values():
         for element in inter:
             gmm_inter.push_back(element)
@@ -504,6 +530,12 @@ def fill_event_data_to_tree(result, event_data):
     for end_point in event_data.gmm["end_point"].values():
         for element in end_point:
             gmm_end.push_back(element)
+
+    for dx in event_data.gmm["vertex_dx"].values():
+        gmm_vertex_dx.push_back(dx)
+
+    for dist3d in event_data.gmm["vertex_dist3d"].values():
+        gmm_vertex_dist3d.push_back(dist3d)
 
     for resp in event_data.gmm["resp"].values():
         for thresholds, angles in resp.items():

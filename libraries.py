@@ -29,7 +29,7 @@ class RunParameters(Enum):
     save_final_data=False
     with_missing_pads = True
     batch_mode = True
-    save_to_root = True
+    save_to_root = False
     save_python_figures = False
     zoom_in_length = 40
     optimize_alpha = False
@@ -38,10 +38,10 @@ class RunParameters(Enum):
     optimize_cdist = False
     optimize_pij = False
     optimize_multiplicity = False
-    save_root_file = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/root_files_hdbscan_filtered/"
+    save_root_file = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/testing/"
     save_root_fig = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/images/mul_metrice1e2no/"
     tag = "final"
-    exc_file_name = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/root_files_hdbscan_filtered/"
+    exc_file_name = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/testing/"
     range_lookup_table = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/LookupTable_e780_58Ni_68Ni_Alex.xlsx"
     range_energy_conversion_sheet = "range_energy_he_he_cf4_mixed"
     use_cij_ransac = True
@@ -122,6 +122,6 @@ class ConversionFactors(Enum):
 class RansacParameters(Enum):
     MAX_LINES = 10
     RESIDUAL_THRESHOLD = 5.0
-    N_ITERATIONS = 5000
+    N_ITERATIONS = 1000
     MIN_SAMPLES = 10
     MIN_INLIERS = 10

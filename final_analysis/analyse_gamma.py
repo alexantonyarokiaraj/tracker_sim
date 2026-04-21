@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 # Settings
 excitation_energies = [10]
 cm_angles = [1, 2, 3, 4, 5]
-base_path = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/final/gamma_2_run/"
+base_path = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/root_files_hdbscan_filtered/"
 volume_min, volume_max = 10, 246
 beam_zone_min, beam_zone_max = 120, 134
 hist_range = (-20, 20)
@@ -94,7 +94,7 @@ array_save_list = []
 for energy in excitation_energies:
     for cm in cm_angles:
         resp_diff_map = defaultdict(list)
-        pattern = os.path.join(base_path, f"gamma_sim_5000_{energy}mev_{cm}cm_*_*.root")
+        pattern = os.path.join(base_path, f"final_sim_5000_{energy}mev_{cm}cm_*_*.root")
         file_list = glob.glob(pattern)
 
         for filepath in file_list:
@@ -127,4 +127,4 @@ for energy in excitation_energies:
 
 # Save after processing all energy/angle combinations
 array_save = np.array(array_save_list)
-np.save("/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/optimize/final/gamma_2_run/arrays/angle_diff_resp.npy", array_save)
+np.save("/home2/user/u0100486/linux/doctorate/github/tracker_sim/final_analysis/angle_diff_resp.npy", array_save)

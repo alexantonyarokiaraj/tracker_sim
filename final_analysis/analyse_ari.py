@@ -1,6 +1,8 @@
 import ROOT
 import glob
 
+ROOT.gROOT.SetBatch(True)
+
 # ----------------------------
 # Define parameters
 # ----------------------------
@@ -11,7 +13,7 @@ files = []
 # Find files matching the pattern
 for ex in exc_energy:
     for cm in cm_angle:
-        file_pattern = f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/root_files_2/final_sim_5000_{ex}mev_{cm}cm_*.root"
+        file_pattern = f"/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/root_files_hdbscan_filtered/final_sim_5000_{ex}mev_{cm}cm_*.root"
         matched_files = glob.glob(file_pattern)
         files.extend(matched_files)
 
@@ -111,14 +113,14 @@ hist_gmm_cdist.SetLineStyle(3)       # dotted
 hist_ransac_filtered.SetLineStyle(4) # dash-dot
 hist_gmm.SetLineStyle(5)             # long dash
 
-# Scale Y-axis
-max_y = max(h.GetMaximum() for h in branch_to_hist.values())
+# Scale Y-axis (only drawn histograms)
+max_y = max(hist_ransac.GetMaximum(), hist_gmm_cdist.GetMaximum())
 hist_ransac.SetMaximum(max_y * 1.1)
 
 # Draw histograms
 hist_ransac.Draw("HIST")
-hist_gmm_pval.Draw("HIST SAME")
-# hist_gmm_cdist.Draw("HIST SAME")
+hist_gmm_cdist.Draw("HIST SAME")
+# hist_gmm_pval.Draw("HIST SAME")
 # hist_ransac_filtered.Draw("HIST SAME")
 # hist_gmm.Draw("HIST SAME")
 
@@ -143,14 +145,13 @@ print(f"  GMM                 → mean = {mean_gmm:.4f}, entries = {entries_gmm}
 
 # Legend
 legend = ROOT.TLegend(0.55, 0.55, 0.9, 0.9)
-legend.AddEntry(hist_ransac, f"RANSAC", "l")
-legend.AddEntry(hist_gmm_pval, f"GMM regularized by #it{{p}}_{{kl}}", "l")
-# legend.AddEntry(hist_gmm_cdist, f"#it{{R}}_{{pij,cij}}, mean = {mean_gmm_cdist:.2f}", "l")
+legend.AddEntry(hist_ransac, f"RANSAC (post-cdist), mean = {mean_ransac:.2f}", "l")
+legend.AddEntry(hist_gmm_cdist, f"GMM (post-cdist), mean = {mean_gmm_cdist:.2f}", "l")
+# legend.AddEntry(hist_gmm_pval, f"GMM regularized by #it{{p}}_{{kl}}", "l")
 # legend.AddEntry(hist_ransac_filtered, f"RANSAC (filtered), mean = {mean_ransac_filtered:.2f}", "l")
 # legend.AddEntry(hist_gmm, f"GMM, mean = {mean_gmm:.2f}", "l")
 legend.Draw()
 
 # Save and update
 canvas.Update()
-# canvas.SaveAs("metric_comparison.png")
-canvas.WaitPrimitive()
+canvas.SaveAs("ari_comparison.png")

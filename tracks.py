@@ -2110,12 +2110,14 @@ for energy in excitation_energies:
                         print(data_array)
 
                     # Run initial clustering (HDBSCAN or DBSCAN) and filter noise
+                    start_hdbscan = time.perf_counter()
                     initial_labels, valid_cluster, epsilon_ = dbcluster(
                         data_array, SCAN.N_PROC.value, SCAN.NN_NEIGHBOR.value,
                         SCAN.NN_RADIUS.value, SCAN.DB_MIN_SAMPLES.value,
                         SCAN.SENSITIVITY.value, SCAN.EPS_THRESHOLD.value,
                         SCAN.EPS_MODE.value
                     )
+                    elapsed_hdbscan = time.perf_counter() - start_hdbscan
                     if not valid_cluster:
                         raise ValueError("Initial clustering failed.")
 
@@ -2155,12 +2157,12 @@ for energy in excitation_energies:
 
                     print(f"Merge computation time: {elapsed_merge:.6f} seconds")
 
-                    print(energy, angle, len(data_array[:,0]), elapsed, elapsed_dbscan, sum(elapsed_gmm), elapsed_merge)
+                    print(energy, angle, len(data_array[:,0]), elapsed, elapsed_hdbscan, sum(elapsed_gmm), elapsed_merge)
                     
-                    # with open(timing_file, "a") as f:
-                    #     f.write(f"{energy}\t{angle}\t{event_start}\t{event_end}\t{len(data_array[:,0])}\t{elapsed:.6f}\t{elapsed_dbscan:.6f}\t{sum(elapsed_gmm):.6f}\t{elapsed_merge:.6f}\n")
+                    with open(timing_file, "a") as timing_fh:
+                        timing_fh.write(f"{energy}\t{angle}\t{event_start}\t{event_end}\t{len(data_array[:,0])}\t{elapsed:.6f}\t{elapsed_hdbscan:.6f}\t{sum(elapsed_gmm):.6f}\t{elapsed_merge:.6f}\n")
                     
-                    # print("File written")
+                    print("File written")
                     timing_results.append((
                                             energy,
                                             angle,
@@ -2213,6 +2215,9 @@ for energy in excitation_energies:
                     ransac['start_point'] = start_point_ransac
                     ransac['end_point'] = end_point_ransac
                     ransac['phi_angles'] = phi_angle_ransac
+                    vertex_sim = np.array([event_info.verX, event_info.verY, event_info.verZ])
+                    ransac['vertex_dx'] = {label: float(inter[0] - vertex_sim[0]) for label, inter in intersections_ransac.items()}
+                    ransac['vertex_dist3d'] = {label: float(np.linalg.norm(np.array(inter) - vertex_sim)) for label, inter in intersections_ransac.items()}
 
                     if RunParameters.optimize_alpha.value:
                         ransac['alpha_op'] = ranges_initial
@@ -2301,6 +2306,8 @@ for energy in excitation_energies:
                     gmm['intersections'] = intersections_gmm
                     gmm['start_point'] = start_point_gmm
                     gmm['end_point'] = end_point_gmm
+                    gmm['vertex_dx'] = {label: float(inter[0] - vertex_sim[0]) for label, inter in intersections_gmm.items()}
+                    gmm['vertex_dist3d'] = {label: float(np.linalg.norm(np.array(inter) - vertex_sim)) for label, inter in intersections_gmm.items()}
                     gmm['resp'] = angles_minimize_gmm
                     gmm['min_res'] = closest_resp
                     gmm['min_angle'] = closest_angle
@@ -2410,9 +2417,6 @@ for energy in excitation_energies:
                 exception_events.append((entries.data.event, str(e), traceback.format_exc()))
                 continue
         print('Exited the file', exception_events)
-        # with open(timing_file, "a") as f1:
-        #     for row in timing_results:
-        #         f1.write("\t".join(str(x) for x in row) + "\n")
         if save_to_root:
             print('Saving to ROOT File')
             result["tree"].Write()

@@ -1,18 +1,22 @@
 import ROOT
+ROOT.gROOT.SetBatch(True)
 import glob
 import numpy as np
 import os
 
 # Settings
 excitation_energies = [10]
-cm_angles = [1,2,3,4,5]
+cm_angles = [1]
 # suppression_factor = range(32)
 suppression_factor = [1]
-base_path = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/root_files_hdbscan/"
+base_path = "/home2/user/u0100486/linux/doctorate/github/tracker_sim/output/root_files_hdbscan_filtered/"
 volume_min, volume_max = 10, 246
 beam_zone_min, beam_zone_max = 120, 134
 hist_range = (-20, 20)
 n_bins = 80
+vertex_dx_range = (-100, 100)
+vertex_dist3d_range = (0, 200)
+n_vertex_bins = 100
 
 def is_inside_volume(point):
     return all(volume_min <= coord <= volume_max for coord in point)
@@ -88,6 +92,57 @@ def process_file(filepath, branch_angle, branch_phi, branch_start, branch_end, b
     file.Close()
     return diff_angles, event_ids
 
+
+def process_file_vertex(filepath, branch_angle, branch_phi, branch_start, branch_end, branch_inter, branch_vdx, branch_vdist, input_angle):
+    """Same filter logic as process_file; returns vertex_dx and vertex_dist3d for accepted events."""
+    vdx_list = []
+    vdist_list = []
+
+    file = ROOT.TFile.Open(filepath)
+    if not file or file.IsZombie():
+        return vdx_list, vdist_list
+
+    tree = file.Get("events")
+    if not tree:
+        file.Close()
+        return vdx_list, vdist_list
+
+    for event in tree:
+        reco_angles = getattr(event, branch_angle)
+        phi_angles  = getattr(event, branch_phi)
+
+        if len(reco_angles) != 1 or len(phi_angles) != 1:
+            continue
+
+        phi = phi_angles[0]
+        if 70 <= abs(phi) <= 110:
+            continue
+
+        start = extract_1track_vector(getattr(event, branch_start))
+        end   = extract_1track_vector(getattr(event, branch_end))
+        inter = extract_1track_vector(getattr(event, branch_inter))
+
+        if not (is_inside_volume(start) and is_inside_volume(end) and is_inside_volume(inter)):
+            continue
+
+        if not is_outside_beam_zone(end[1]):
+            continue
+
+        sim_angle = getattr(event, input_angle)[0]
+        angle_diff = sim_angle - reco_angles[0]
+        if not (hist_range[0] < angle_diff < hist_range[1]):
+            continue
+
+        vdx   = getattr(event, branch_vdx)
+        vdist = getattr(event, branch_vdist)
+        if len(vdx) >= 1 and len(vdist) >= 1:
+            vdx_list.append(float(vdx[0]))
+            vdist_list.append(float(vdist[0]))
+
+    file.Close()
+    return vdx_list, vdist_list
+
+
 list_values = []
 # Main loop
 for energy in excitation_energies:
@@ -103,6 +158,10 @@ for energy in excitation_energies:
             gmm_diffs = []
             ransac_rejections_total = {}
             gmm_rejections_total = {}
+            ransac_vdx = []
+            ransac_vdist = []
+            gmm_vdx = []
+            gmm_vdist = []
 
             pattern = os.path.join(base_path, f"final_sim_5000_{energy}mev_{cm}cm_*_*_1.root")
             file_list = glob.glob(pattern)
@@ -124,6 +183,19 @@ for energy in excitation_energies:
 
                 ransac_diffs += ransac_diff
                 gmm_diffs += gmm_diff
+
+                r_vdx, r_vdist = process_file_vertex(
+                    filepath, "ransac_angles", "ransac_phi_angles",
+                    "ransac_start", "ransac_end", "ransac_inter",
+                    "ransac_vertex_dx", "ransac_vertex_dist3d", "Elab")
+                g_vdx, g_vdist = process_file_vertex(
+                    filepath, "gmm_angles", "gmm_phi_angles",
+                    "gmm_start", "gmm_end", "gmm_inter",
+                    "gmm_vertex_dx", "gmm_vertex_dist3d", "Elab")
+                ransac_vdx   += r_vdx
+                ransac_vdist += r_vdist
+                gmm_vdx   += g_vdx
+                gmm_vdist += g_vdist
 
                 # Identify GMM-only and RANSAC-only events
                 gmm_only_ids = set(gmm_ids) - set(ransac_ids)
@@ -202,7 +274,125 @@ for energy in excitation_energies:
 
 
             canvas.Update()
-            canvas.SaveAs(f"his_{energy}MeV_{cm}cm_{suppress}su_min_samples.png")
-            canvas.WaitPrimitive()
+            canvas.SaveAs(f"fhis_{energy}MeV_{cm}cm_{suppress}su_min_samples.png")
+
+            # ---- Vertex residual ROOT file (2 pads) ----
+            root_out = ROOT.TFile(f"vertex_{energy}MeV_{cm}cm.root", "RECREATE")
+
+            h_ransac_vdx   = ROOT.TH1F(f"ransac_vdx_{energy}_{cm}",
+                f"Vertex X diff {energy} MeV {cm}cm;x_{{reco}} - x_{{sim}} (mm);Entries",
+                n_vertex_bins, vertex_dx_range[0], vertex_dx_range[1])
+            h_gmm_vdx      = ROOT.TH1F(f"gmm_vdx_{energy}_{cm}",
+                f"Vertex X diff {energy} MeV {cm}cm;x_{{reco}} - x_{{sim}} (mm);Entries",
+                n_vertex_bins, vertex_dx_range[0], vertex_dx_range[1])
+            h_ransac_vdist = ROOT.TH1F(f"ransac_vdist_{energy}_{cm}",
+                f"Vertex 3D dist {energy} MeV {cm}cm;|v_{{reco}} - v_{{sim}}| (mm);Entries",
+                n_vertex_bins, vertex_dist3d_range[0], vertex_dist3d_range[1])
+            h_gmm_vdist    = ROOT.TH1F(f"gmm_vdist_{energy}_{cm}",
+                f"Vertex 3D dist {energy} MeV {cm}cm;|v_{{reco}} - v_{{sim}}| (mm);Entries",
+                n_vertex_bins, vertex_dist3d_range[0], vertex_dist3d_range[1])
+
+            for v in ransac_vdx:   h_ransac_vdx.Fill(v)
+            for v in gmm_vdx:      h_gmm_vdx.Fill(v)
+            for v in ransac_vdist: h_ransac_vdist.Fill(v)
+            for v in gmm_vdist:    h_gmm_vdist.Fill(v)
+
+            # Build normalized clones before drawing (histograms are valid here)
+            norm_hists = {}
+            for h in [h_ransac_vdx, h_gmm_vdx, h_ransac_vdist, h_gmm_vdist]:
+                h_norm = h.Clone(h.GetName() + "_norm")
+                h_norm.SetDirectory(0)  # detach from file so it survives root_out.Close()
+                if h_norm.Integral() > 0:
+                    h_norm.Scale(1.0 / h_norm.Integral())
+                h_norm.GetYaxis().SetTitle("Normalized counts")
+                norm_hists[h.GetName()] = h_norm
+
+            h_rvdx_n   = norm_hists[f"ransac_vdx_{energy}_{cm}"]
+            h_gvdx_n   = norm_hists[f"gmm_vdx_{energy}_{cm}"]
+            h_rvdist_n = norm_hists[f"ransac_vdist_{energy}_{cm}"]
+            h_gvdist_n = norm_hists[f"gmm_vdist_{energy}_{cm}"]
+
+            h_rvdx_n.SetLineColor(ROOT.kBlue)
+            h_gvdx_n.SetLineColor(ROOT.kRed)
+            h_rvdist_n.SetLineColor(ROOT.kBlue)
+            h_gvdist_n.SetLineColor(ROOT.kRed)
+
+            c_vertex = ROOT.TCanvas(f"c_vertex_{energy}_{cm}",
+                f"Vertex Residuals {energy} MeV {cm}cm", 1200, 600)
+            c_vertex.Divide(2, 1)
+
+            c_vertex.cd(1)
+            h_rvdist_n.SetStats(0)
+            h_gvdist_n.SetStats(0)
+            h_rvdist_n.SetMaximum(max(h_rvdist_n.GetMaximum(), h_gvdist_n.GetMaximum()) * 1.1)
+            h_rvdist_n.Draw("HIST")
+            h_gvdist_n.Draw("HIST SAME")
+            leg_vdist = ROOT.TLegend(0.65, 0.75, 0.88, 0.88)
+            leg_vdist.AddEntry(h_rvdist_n, "RANSAC", "l")
+            leg_vdist.AddEntry(h_gvdist_n, "GMM",    "l")
+            leg_vdist.Draw()
+
+            c_vertex.cd(2)
+            h_rvdx_n.SetStats(0)
+            h_gvdx_n.SetStats(0)
+            h_rvdx_n.SetMaximum(max(h_rvdx_n.GetMaximum(), h_gvdx_n.GetMaximum()) * 1.1)
+            h_rvdx_n.Draw("HIST")
+            h_gvdx_n.Draw("HIST SAME")
+            leg_vdx = ROOT.TLegend(0.65, 0.75, 0.88, 0.88)
+            leg_vdx.AddEntry(h_rvdx_n, "RANSAC", "l")
+            leg_vdx.AddEntry(h_gvdx_n, "GMM",    "l")
+            leg_vdx.Draw()
+
+            c_vertex.Update()
+            c_vertex.Write()
+            h_ransac_vdx.Write()
+            h_gmm_vdx.Write()
+            h_ransac_vdist.Write()
+            h_gmm_vdist.Write()
+            root_out.Close()
+
+            # Save area-normalized copies in a separate ROOT file
+            # Save PNG of normalized histograms
+            c_norm = ROOT.TCanvas(f"c_norm_{energy}_{cm}",
+                f"Normalized Vertex Residuals {energy} MeV {cm}cm", 1200, 600)
+            c_norm.Divide(2, 1)
+
+            c_norm.cd(1)
+            h_rvdist_n = norm_hists[f"ransac_vdist_{energy}_{cm}"]
+            h_gvdist_n = norm_hists[f"gmm_vdist_{energy}_{cm}"]
+            h_rvdist_n.SetStats(0)
+            h_gvdist_n.SetStats(0)
+            h_rvdist_n.SetMaximum(max(h_rvdist_n.GetMaximum(), h_gvdist_n.GetMaximum()) * 1.2)
+            h_rvdist_n.Draw("HIST")
+            h_gvdist_n.Draw("HIST SAME")
+            leg1 = ROOT.TLegend(0.65, 0.75, 0.88, 0.88)
+            leg1.AddEntry(h_rvdist_n, "RANSAC", "l")
+            leg1.AddEntry(h_gvdist_n, "GMM", "l")
+            leg1.Draw()
+
+            c_norm.cd(2)
+            h_rvdx_n = norm_hists[f"ransac_vdx_{energy}_{cm}"]
+            h_gvdx_n = norm_hists[f"gmm_vdx_{energy}_{cm}"]
+            h_rvdx_n.SetStats(0)
+            h_gvdx_n.SetStats(0)
+            h_rvdx_n.SetMaximum(max(h_rvdx_n.GetMaximum(), h_gvdx_n.GetMaximum()) * 1.2)
+            h_rvdx_n.Draw("HIST")
+            h_gvdx_n.Draw("HIST SAME")
+            leg2 = ROOT.TLegend(0.65, 0.75, 0.88, 0.88)
+            leg2.AddEntry(h_rvdx_n, "RANSAC", "l")
+            leg2.AddEntry(h_gvdx_n, "GMM", "l")
+            leg2.Draw()
+
+            c_norm.Update()
+            c_norm.SaveAs(f"vertex_norm_{energy}MeV_{cm}cm.png")
+
+            # Write normalized histograms and canvas to separate ROOT file
+            root_norm = ROOT.TFile(f"vertex_norm_{energy}MeV_{cm}cm.root", "RECREATE")
+            for h_norm in norm_hists.values():
+                h_norm.Write()
+            c_norm.Write()
+            root_norm.Close()
+
+
 
 # np.save('list_e1e2metric.npy',np.array(list_values))
